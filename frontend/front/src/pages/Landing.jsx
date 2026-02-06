@@ -1,12 +1,11 @@
 import vet from "../assets/vet.png"
+import Navbar from "../components/Navbar";
 const Landing = () => {
   return (
     <div className="min-h-screen bg-white flex flex-col">
       
       {/* Header */}
-      <header className="py-6  ml-50 text-3xl font-semibold font-serif text-slate-800">
-        <span className="font-bold">Smart</span>PetCare
-      </header>
+       <Navbar />
 
       {/* Hero Section */}
       <main className="flex-1 flex items-center justify-center px-6">
