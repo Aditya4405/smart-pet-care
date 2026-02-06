@@ -1,6 +1,7 @@
  import React from 'react'
 import Landing from './pages/Landing'
 import Navbar from './components/Navbar'
+
  
  const App = () => {
    return (
