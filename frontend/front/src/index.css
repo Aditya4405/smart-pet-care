@@ -4,3 +4,10 @@ html {
   scroll-behavior: smooth;
 }
 
+/* 👇 THIS LINE IS THE MAGIC FIX FOR v4 TOGGLE BUTTONS */
+@variant dark (&:where(.dark, .dark *));
+
+/* specific overrides if needed */
+:root {
+  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+}
