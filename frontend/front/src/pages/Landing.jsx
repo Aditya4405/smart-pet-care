@@ -1,9 +1,10 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom'; 
 import vet from "../assets/vet.png";
 import Navbar from "../components/Navbar";
 import FeatureCard from "../components/FeatureCard";
 
-// Icons for the footer (defined here to keep code clean)
+// Icons for the footer
 const FooterIcons = {
   Email: (
     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
@@ -16,6 +17,7 @@ const FooterIcons = {
   )
 };
 
+// Feature Icons
 const Icons = {
   Health: (<svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" /></svg>),
   Calendar: (<svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>),
@@ -23,6 +25,8 @@ const Icons = {
 };
 
 const Landing = () => {
+  const navigate = useNavigate(); // HOOK INITIALIZED
+
   return (
     <div className="min-h-screen font-sans transition-colors duration-300 bg-slate-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 selection:bg-cyan-100 selection:text-cyan-900">
       
@@ -53,8 +57,8 @@ const Landing = () => {
               <p className="text-lg text-gray-600 dark:text-gray-400 mb-8 leading-relaxed max-w-lg">
                 Manage appointments, track vaccinations, and get expert vet advice in one intelligent dashboard.
               </p>
-           
-              {/* Stats */}
+                
+            {/* Stats */}
               <div className="mt-12 pt-8 border-t border-gray-100 dark:border-gray-800 grid grid-cols-3 gap-8">
                 {[
                   { label: "Pet Owners", val: "10K+" },
@@ -106,11 +110,17 @@ const Landing = () => {
               <p className="text-gray-300 mb-10 text-lg">
                 Join 10,000+ happy pet owners today. Sign up is free and takes less than 2 minutes.
               </p>
+              
+              {/* CTA BUTTON - LINKED TO SIGNUP */}
               <div className="flex justify-center gap-4">
-                 <button className="px-8 py-3 bg-cyan-500 hover:bg-cyan-400 text-white font-bold rounded-full transition-all shadow-lg hover:shadow-cyan-500/25 hover:-translate-y-1">
+                 <button 
+                   onClick={() => navigate('/signup')}
+                   className="px-8 py-3 bg-cyan-500 hover:bg-cyan-400 text-white font-bold rounded-full transition-all shadow-lg hover:shadow-cyan-500/25 hover:-translate-y-1"
+                 >
                    Get Started Now
                  </button>
               </div>
+              
             </div>
           </div>
         </div>
@@ -151,7 +161,7 @@ const Landing = () => {
                      <div className="p-2 bg-gray-100 dark:bg-gray-800 rounded-lg text-cyan-600 dark:text-cyan-400">
                        {FooterIcons.Map}
                      </div>
-                     <span className="font-medium">Kanpur,India</span>
+                     <span className="font-medium">Kanpur, India</span>
                    </li>
                  </ul>
                </div>
