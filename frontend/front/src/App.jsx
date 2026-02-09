@@ -1,18 +1,23 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+
+// Import your pages
 import Landing from './pages/Landing';
-import SignUp from './pages/SignUp';
+import Signup from './pages/Signup';
+import Profile from './pages/Profile'; // <--- IMPORT THIS
 
 function App() {
   return (
     <Router>
       <Routes>
-        {/* Landing Page */}
+        {/* Existing Routes */}
         <Route path="/" element={<Landing />} />
+        <Route path="/signup" element={<Signup />} />
+        <Route path="/login" element={<Signup />} />
         
-        {/* Auth Pages (Both use the Signup component) */}
-        <Route path="/signup" element={<SignUp />} />
-        <Route path="/login" element={<SignUp />} />
+        {/* 👇 ADD THIS NEW ROUTE 👇 */}
+        <Route path="/profile" element={<Profile />} />
+        
       </Routes>
     </Router>
   );
