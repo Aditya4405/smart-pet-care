@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import Navbar from '../components/Navbar'; // 👈 IMPORTED NAVBAR
 
 const SignUp = () => {
   const navigate = useNavigate();
@@ -103,6 +104,9 @@ const SignUp = () => {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col font-sans transition-colors duration-300 pt-24">
       
+      {/* 🔹 NAVBAR ADDED HERE 🔹 */}
+      <Navbar />
+
       <div className="flex-grow flex items-center justify-center p-4 sm:p-6">
         
         <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-xl w-full max-w-xl p-8 relative overflow-hidden border border-gray-100 dark:border-gray-700">
@@ -155,7 +159,7 @@ const SignUp = () => {
                     type="email" 
                     value={formData.email} 
                     onChange={handleChange} 
-                    placeholder="john@example.com" 
+                    placeholder="Enter your email" 
                     error={errors.email}
                 />
                 <InputField 
@@ -172,12 +176,12 @@ const SignUp = () => {
             ) : (
               <>
                 <div className="grid grid-cols-2 gap-4">
-                  <InputField label="First Name" name="firstName" value={formData.firstName} onChange={handleChange} placeholder="John" error={errors.firstName} />
-                  <InputField label="Last Name" name="lastName" value={formData.lastName} onChange={handleChange} placeholder="Doe" error={errors.lastName} />
+                  <InputField label="First Name" name="firstName" value={formData.firstName} onChange={handleChange} placeholder="First Name" error={errors.firstName} />
+                  <InputField label="Last Name" name="lastName" value={formData.lastName} onChange={handleChange} placeholder="Last Name" error={errors.lastName} />
                 </div>
-                <InputField label="Email Address" name="email" type="email" value={formData.email} onChange={handleChange} placeholder="john@example.com" error={errors.email} />
+                <InputField label="Email Address" name="email" type="email" value={formData.email} onChange={handleChange} placeholder="Enter your email" error={errors.email} />
                 <div className="grid grid-cols-2 gap-4">
-                  <InputField label="Phone Number" name="phone" type="tel" value={formData.phone} onChange={handleChange} placeholder="(555) 000-0000" error={errors.phone} />
+                  <InputField label="Phone Number" name="phone" type="tel" value={formData.phone} onChange={handleChange} placeholder="Phone no" error={errors.phone} />
                   
                   {/* Gender Select with Error Handling */}
                   <div className="flex flex-col gap-1.5">
