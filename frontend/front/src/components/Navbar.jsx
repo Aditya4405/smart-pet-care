@@ -95,7 +95,7 @@ const Navbar = () => {
           {isLoggedIn ? (
             // === LOGGED IN LINKS ===
             <>
-              {['Dashboard', 'My Pets', 'Appointments'].map((item) => (
+              {['Dashboard', 'My Pets', 'Appointments','Shop'].map((item) => (
                 <button
                   key={item}
                   className="text-sm font-bold text-gray-600 dark:text-gray-300 hover:text-cyan-600 dark:hover:text-cyan-400 transition-colors"
