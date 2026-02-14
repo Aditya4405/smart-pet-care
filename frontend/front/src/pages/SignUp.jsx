@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import PublicNavbar from '../components/PublicNavbar'; 
-import { ShieldCheck, User, Users } from 'lucide-react'; // Added Icons
+import { ShieldCheck, User, Users } from 'lucide-react'; 
 
 const SignUp = () => {
   const navigate = useNavigate();
@@ -9,14 +9,14 @@ const SignUp = () => {
   
   // State
   const [isLogin, setIsLogin] = useState(location.pathname === '/login');
-  const [isAdminLogin, setIsAdminLogin] = useState(false); // Default to User Login
-  const [userType, setUserType] = useState('user'); // For Signup (Pet Owner vs Vet)
+  const [isAdminLogin, setIsAdminLogin] = useState(false); 
+  const [userType, setUserType] = useState('user'); // 'user' or 'vet'
 
   // Listen for URL changes
   useEffect(() => {
     setIsLogin(location.pathname === '/login');
     setErrors({});
-    setIsAdminLogin(false); // Reset to user login on navigation
+    setIsAdminLogin(false); 
   }, [location.pathname]);
 
   // Form Data
@@ -28,6 +28,7 @@ const SignUp = () => {
     gender: '',
     password: '',
     confirmPassword: '',
+    // Vet Specific
     clinicName: '',
     specialization: '',
     yearsExperience: '',
@@ -59,7 +60,7 @@ const SignUp = () => {
       if (userType === 'vet') {
          if (!formData.clinicName) newErrors.clinicName = 'Clinic Name required';
          if (!formData.licenseNumber) newErrors.licenseNumber = 'License required';
-         if (!formData.certificate) newErrors.certificate = 'Certificate file is required';
+         // Note: Certificate validation can be added here if strict
       }
     }
     setErrors(newErrors);
@@ -83,11 +84,11 @@ const SignUp = () => {
         let headers = {};
 
         if (isLogin) {
-            // LOGIN
+            // LOGIN PAYLOAD
             body = JSON.stringify({ email: formData.email, password: formData.password });
             headers = { 'Content-Type': 'application/json' };
         } else {
-            // REGISTER
+            // REGISTER PAYLOAD (Multipart for Vet file upload support)
             const dataPayload = { ...formData };
             dataPayload.role = userType === 'vet' ? 'VET' : 'USER';
             delete dataPayload.confirmPassword;
@@ -112,30 +113,34 @@ const SignUp = () => {
             const userData = await response.json();
             
             if (isLogin) {
-                // --- LOGIN SUCCESS LOGIC ---
-                const role = userData.role ? userData.role.toUpperCase() : 'USER';
-
-                // 🛑 STRICT ADMIN CHECK
-                if (isAdminLogin && role !== 'ADMIN') {
+                // --- LOGIN SUCCESS ---
+                
+                // 1. Normalize Role to Uppercase (Fixes "vet" vs "VET" bug)
+                const normalizedRole = userData.role ? userData.role.toUpperCase() : 'USER';
+                
+                // 2. Strict Admin Check
+                if (isAdminLogin && normalizedRole !== 'ADMIN') {
                     alert("Access Denied: You are not an Administrator.");
                     return; 
                 }
-                // 🛑 STRICT USER CHECK (Prevent Admins from logging in as Users if you want)
-                // Optional: if (!isAdminLogin && role === 'ADMIN') { alert("Please use Admin Login."); return; }
 
-                localStorage.setItem('user', JSON.stringify(userData));
+                // 3. Save User
+                const finalUser = { ...userData, role: normalizedRole };
+                localStorage.setItem('user', JSON.stringify(finalUser));
                 
-                // Redirect based on Role
-                if (role === 'ADMIN') {
+                alert("Login Successful!");
+                
+                // 4. Redirect (Updated for Dashboard)
+                if (normalizedRole === 'ADMIN') {
                     navigate('/admin/dashboard');
-                } else if (role === 'VET') {
-                    navigate('/vet/dashboard');
+                } else if (normalizedRole === 'VET') {
+                    navigate('/vet/dashboard'); // <--- Redirects to the visual dashboard
                 } else {
                     navigate('/owner/dashboard');
                 }
 
             } else {
-                // --- REGISTRATION SUCCESS LOGIC ---
+                // --- REGISTER SUCCESS ---
                 if (userType === 'vet') {
                     alert("Registration Request Sent! Please wait for Admin Approval.");
                 } else {
@@ -163,7 +168,6 @@ const SignUp = () => {
       <div className="flex-grow flex items-center justify-center p-4 sm:p-6">
         <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-xl w-full max-w-xl p-8 relative overflow-hidden border border-gray-100 dark:border-gray-700">
           
-          {/* Top Right Toggle (Sign Up / Sign In) */}
           <div className="absolute top-6 right-6 sm:top-8 sm:right-8 bg-gray-100 dark:bg-gray-700 p-1 rounded-full flex text-xs sm:text-sm font-semibold">
             <button onClick={() => navigate('/signup')} className={`px-4 py-1.5 rounded-full transition-all duration-200 ${!isLogin ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700'}`}>Sign up</button>
             <button onClick={() => navigate('/login')} className={`px-4 py-1.5 rounded-full transition-all duration-200 ${isLogin ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700'}`}>Sign in</button>
@@ -220,18 +224,18 @@ const SignUp = () => {
 
             {isLogin ? (
               <>
-                <InputField label="Email Address" name="email" type="email" value={formData.email} onChange={handleChange} placeholder={isAdminLogin ? "admin@smartpet.com" : "john@example.com"} error={errors.email} />
+                <InputField label="Email Address" name="email" type="email" value={formData.email} onChange={handleChange} placeholder={isAdminLogin ? "Enter admin email" : "Enter your email"} error={errors.email} />
                 <InputField label="Password" name="password" type="password" value={formData.password} onChange={handleChange} placeholder="••••••••" error={errors.password} />
               </>
             ) : (
               <>
                 <div className="grid grid-cols-2 gap-4">
-                  <InputField label="First Name" name="firstName" value={formData.firstName} onChange={handleChange} placeholder="John" error={errors.firstName} />
-                  <InputField label="Last Name" name="lastName" value={formData.lastName} onChange={handleChange} placeholder="Doe" error={errors.lastName} />
+                  <InputField label="First Name" name="first Name" value={formData.firstName} onChange={handleChange} placeholder="First" error={errors.firstName} />
+                  <InputField label="Last Name" name="lastName" value={formData.lastName} onChange={handleChange} placeholder="Last Name" error={errors.lastName} />
                 </div>
-                <InputField label="Email Address" name="email" type="email" value={formData.email} onChange={handleChange} placeholder="john@example.com" error={errors.email} />
+                <InputField label="Email Address" name="email" type="email" value={formData.email} onChange={handleChange} placeholder="Enter your email" error={errors.email} />
                 <div className="grid grid-cols-2 gap-4">
-                  <InputField label="Phone Number" name="phone" type="tel" value={formData.phone} onChange={handleChange} placeholder="(555) 000-0000" error={errors.phone} />
+                  <InputField label="Phone Number" name="phone" type="tel" value={formData.phone} onChange={handleChange} placeholder="Enter Phone no" error={errors.phone} />
                   <div className="flex flex-col gap-1.5">
                     <label className="text-sm font-semibold text-gray-700 dark:text-gray-300 ml-1">Gender</label>
                     <div className="relative">
@@ -274,7 +278,6 @@ const SignUp = () => {
               </>
             )}
 
-            {/* MAIN SUBMIT BUTTON */}
             <button 
                 type="submit" 
                 className={`w-full text-white font-bold py-3.5 rounded-xl shadow-lg transition-all mt-2 
@@ -287,7 +290,6 @@ const SignUp = () => {
             </button>
           </form>
 
-          {/* Bottom Link */}
           <div className="mt-8 text-center">
             <button onClick={() => navigate(isLogin ? '/signup' : '/login')} className="font-bold text-cyan-600 hover:underline">
                 {isLogin ? 'Don\'t have an account? Sign up' : 'Already have an account? Sign in'}
