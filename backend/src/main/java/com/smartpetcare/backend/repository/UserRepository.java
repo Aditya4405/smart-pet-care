@@ -6,10 +6,11 @@ import com.smartpetcare.backend.entity.User;
 
 public interface UserRepository extends JpaRepository<User, Long> {
 
-    // Custom method to find a user by email
-    // Spring Boot automatically understands this and writes the SQL for you!
     Optional<User> findByEmail(String email);
     
-    // We can verify if an email exists before signup
     Boolean existsByEmail(String email);
+
+    // 🔹 NEW: Custom counting methods for the Admin Dashboard
+    long countByRole(String role);
+    long countByRoleAndStatus(String role, String status);
 }

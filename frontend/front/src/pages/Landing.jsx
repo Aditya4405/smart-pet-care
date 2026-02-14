@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom'; 
 import vet from "../assets/vet.png";
-import Navbar from "../components/Navbar";
+import PublicNavbar from "../components/PublicNavbar";
 import FeatureCard from "../components/FeatureCard";
 
 // Icons for the footer
@@ -30,7 +30,7 @@ const Landing = () => {
   return (
     <div className="min-h-screen font-sans transition-colors duration-300 bg-slate-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 selection:bg-cyan-100 selection:text-cyan-900">
       
-      <Navbar />
+      <PublicNavbar />
 
       {/* ================= HERO SECTION ================= */}
       <section id="home" className="relative pt-32 pb-16 lg:pt-48 lg:pb-32 overflow-hidden">
