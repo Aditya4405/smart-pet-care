@@ -2,18 +2,17 @@ import React, { useState, useRef, useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { 
   Bell, ChevronDown, User, Settings, LogOut, 
-  Stethoscope, Moon, Sun 
+  PawPrint, Moon, Sun, Search 
 } from 'lucide-react';
-import { useTheme } from '../../hooks/useTheme'; // Ensure this path is correct
+import { useTheme } from '../../hooks/useTheme';
 
-const VetTopNav = () => {
+const OwnerTopNav = () => {
   const navigate = useNavigate();
-  const { theme, toggleTheme } = useTheme(); 
+  const { theme, toggleTheme } = useTheme();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
   
-  // Get Vet User Data
-  const user = JSON.parse(localStorage.getItem('user')) || { firstName: 'Aditya', lastName: 'Prajapati' };
+  const user = JSON.parse(localStorage.getItem('user')) || { firstName: 'Pet', lastName: 'Owner' };
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -32,11 +31,11 @@ const VetTopNav = () => {
   };
 
   const navLinks = [
-    { name: 'Dashboard', path: '/vet/dashboard' },
-    { name: 'Schedule', path: '/vet/schedule' },
-    { name: 'Patients', path: '/vet/patients' },
-    { name: 'Marketplace', path: '/vet/marketplace' }, // Updated from Prescriptions
-    { name: 'Analytics', path: '/vet/analytics' },
+    { name: 'Dashboard', path: '/owner/dashboard' },
+    { name: 'Find Vet', path: '/owner/doctors' }, // <--- NEW LINK
+    { name: 'My Pets', path: '/owner/pets' },
+    { name: 'Marketplace', path: '/owner/marketplace' },
+    { name: 'Appointments', path: '/owner/appointments' },
   ];
 
   return (
@@ -45,11 +44,11 @@ const VetTopNav = () => {
         <div className="flex justify-between items-center h-16">
           
           {/* Logo */}
-          <div className="flex items-center gap-2.5 cursor-pointer group" onClick={() => navigate('/vet/dashboard')}>
-            <div className="w-9 h-9 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-xl flex items-center justify-center text-white font-bold shadow-lg shadow-emerald-500/20 group-hover:scale-105 transition-all duration-300">
-              <Stethoscope className="w-5 h-5" />
+          <div className="flex items-center gap-2.5 cursor-pointer group" onClick={() => navigate('/owner/dashboard')}>
+            <div className="w-9 h-9 bg-gradient-to-br from-cyan-400 to-cyan-600 rounded-xl flex items-center justify-center text-white font-bold shadow-lg shadow-cyan-500/20 group-hover:scale-105 transition-all duration-300">
+              <PawPrint className="w-5 h-5" />
             </div>
-            <span className="font-bold text-xl tracking-tight text-slate-900 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">VetConsole</span>
+            <span className="font-bold text-xl tracking-tight text-slate-900 dark:text-white group-hover:text-cyan-600 dark:group-hover:text-cyan-400 transition-colors">PetCare</span>
           </div>
 
           {/* Navigation Links */}
@@ -61,7 +60,7 @@ const VetTopNav = () => {
                 className={({ isActive }) =>
                   `px-5 py-1.5 rounded-full text-sm font-medium transition-all duration-200 ${
                     isActive
-                      ? 'bg-white dark:bg-slate-700 text-emerald-700 dark:text-emerald-300 shadow-sm ring-1 ring-slate-200 dark:ring-slate-600'
+                      ? 'bg-white dark:bg-slate-700 text-cyan-700 dark:text-cyan-300 shadow-sm ring-1 ring-slate-200 dark:ring-slate-600'
                       : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/50 dark:hover:bg-slate-700/50'
                   }`
                 }
@@ -74,10 +73,8 @@ const VetTopNav = () => {
           {/* Right Side Actions */}
           <div className="flex items-center gap-3 sm:gap-4">
             
-            {/* Notification Bell */}
-            <button className="relative p-2.5 rounded-xl text-slate-500 hover:text-emerald-600 dark:text-slate-400 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-all duration-200">
+            <button className="relative p-2.5 rounded-xl text-slate-500 hover:text-cyan-600 dark:text-slate-400 dark:hover:text-cyan-400 hover:bg-cyan-50 dark:hover:bg-cyan-900/20 transition-all duration-200">
               <Bell className="w-5 h-5" />
-              <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-red-500 rounded-full ring-2 ring-white dark:ring-slate-900"></span>
             </button>
 
             {/* Profile Dropdown */}
@@ -86,12 +83,12 @@ const VetTopNav = () => {
                 onClick={() => setIsDropdownOpen(!isDropdownOpen)}
                 className={`flex items-center gap-2 pl-1 pr-2 py-1 rounded-full border transition-all duration-200 ${
                   isDropdownOpen 
-                    ? 'bg-white dark:bg-slate-800 border-emerald-500/30 ring-2 ring-emerald-500/10' 
+                    ? 'bg-white dark:bg-slate-800 border-cyan-500/30 ring-2 ring-cyan-500/10' 
                     : 'border-transparent hover:bg-slate-100 dark:hover:bg-slate-800'
                 }`}
               >
-                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-100 to-teal-100 dark:from-emerald-900 dark:to-teal-900 flex items-center justify-center text-emerald-700 dark:text-emerald-300 font-bold text-sm shadow-sm">
-                  {user.firstName ? user.firstName[0] : 'D'}
+                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-cyan-100 to-blue-100 dark:from-cyan-900 dark:to-blue-900 flex items-center justify-center text-cyan-700 dark:text-cyan-300 font-bold text-sm shadow-sm">
+                  {user.firstName ? user.firstName[0] : 'U'}
                 </div>
                 <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform duration-300 ${isDropdownOpen ? 'rotate-180' : ''}`} />
               </button>
@@ -99,46 +96,26 @@ const VetTopNav = () => {
               {/* Dropdown Menu */}
               {isDropdownOpen && (
                 <div className="absolute right-0 mt-3 w-64 bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-700 py-2 animate-in fade-in zoom-in-95 duration-200 origin-top-right ring-1 ring-black/5 z-50">
-                  
-                  {/* User Info Header */}
                   <div className="px-5 py-3 border-b border-slate-100 dark:border-slate-800">
-                    <p className="text-sm font-bold text-slate-900 dark:text-white">Dr. {user.firstName} {user.lastName}</p>
-                    <p className="text-xs text-slate-500 font-medium mt-0.5">Veterinarian Account</p>
+                    <p className="text-sm font-bold text-slate-900 dark:text-white">{user.firstName} {user.lastName}</p>
+                    <p className="text-xs text-slate-500 font-medium mt-0.5">Pet Owner</p>
                   </div>
                   
                   <div className="p-2 space-y-1">
-                    {/* Link 1: Practice Profile */}
-                    <button 
-                      onClick={() => { setIsDropdownOpen(false); navigate('/vet/profile'); }} 
-                      className="w-full text-left px-3 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition-colors flex items-center gap-3"
-                    >
-                      <User className="w-4 h-4 text-slate-400" /> Practice Profile
+                    <button onClick={() => { setIsDropdownOpen(false); navigate('/owner/profile'); }} className="w-full text-left px-3 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition-colors flex items-center gap-3">
+                      <User className="w-4 h-4 text-slate-400" /> My Profile
                     </button>
-
-                    {/* Link 2: Settings */}
-                    <button 
-                      onClick={() => { setIsDropdownOpen(false); navigate('/vet/settings'); }}
-                      className="w-full text-left px-3 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition-colors flex items-center gap-3"
-                    >
+                    <button onClick={() => { setIsDropdownOpen(false); navigate('/owner/settings'); }} className="w-full text-left px-3 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition-colors flex items-center gap-3">
                       <Settings className="w-4 h-4 text-slate-400" /> Settings
                     </button>
-                    
-                    {/* Link 3: Dark Mode Toggle */}
-                    <button 
-                      onClick={toggleTheme} 
-                      className="w-full text-left px-3 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition-colors flex items-center gap-3"
-                    >
+                    <button onClick={toggleTheme} className="w-full text-left px-3 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition-colors flex items-center gap-3">
                       {theme === 'dark' ? <Sun className="w-4 h-4 text-slate-400" /> : <Moon className="w-4 h-4 text-slate-400" />} 
                       {theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
                     </button>
                   </div>
 
-                  {/* Sign Out */}
                   <div className="border-t border-slate-100 dark:border-slate-800 mt-1 p-2">
-                    <button 
-                      onClick={handleLogout} 
-                      className="w-full text-left px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50 dark:hover:bg-red-900/10 rounded-lg transition-colors flex items-center gap-3"
-                    >
+                    <button onClick={handleLogout} className="w-full text-left px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50 dark:hover:bg-red-900/10 rounded-lg transition-colors flex items-center gap-3">
                       <LogOut className="w-4 h-4" /> Sign Out
                     </button>
                   </div>
@@ -152,4 +129,4 @@ const VetTopNav = () => {
   );
 };
 
-export default VetTopNav;
+export default OwnerTopNav;

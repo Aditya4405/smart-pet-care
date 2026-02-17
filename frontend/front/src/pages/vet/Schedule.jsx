@@ -1,109 +1,96 @@
 import React, { useState } from 'react';
-// FIX: Added 'Stethoscope' to the imports below
-import { Calendar as CalIcon, Clock, Video, MapPin, MoreVertical, CheckCircle, XCircle, Stethoscope } from 'lucide-react';
+import { Calendar, Clock, Video, MapPin, MoreVertical, CheckCircle, XCircle, Stethoscope } from 'lucide-react';
+import ConsultationForm from '../../components/vet/ConsultationForm';
 
-const Schedule = () => {
-  const [view, setView] = useState('day');
-  const [isAvailable, setIsAvailable] = useState(true);
+const VetSchedule = () => {
+  // State for the Consultation Form
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [selectedAppointment, setSelectedAppointment] = useState(null);
 
   const appointments = [
-    { id: 1, time: '09:00 AM', pet: 'Bella', owner: 'Aditya P.', type: 'General Checkup', mode: 'In-Clinic', status: 'Confirmed' },
-    { id: 2, time: '10:30 AM', pet: 'Rocky', owner: 'Sarah J.', type: 'Vaccination', mode: 'Video Call', status: 'Pending' },
-    { id: 3, time: '02:00 PM', pet: 'Luna', owner: 'Mike R.', type: 'Dental Cleaning', mode: 'In-Clinic', status: 'Confirmed' },
+    { id: 1, pet: 'Bella', owner: 'Aditya Prajapati', time: '10:00 AM', type: 'Checkup', status: 'Confirmed', img: 'https://images.unsplash.com/photo-1552053831-71594a27632d?auto=format&fit=crop&w=150&q=80' },
+    { id: 2, pet: 'Max', owner: 'John Doe', time: '11:30 AM', type: 'Vaccination', status: 'Pending', img: 'https://images.unsplash.com/photo-1537151608828-ea2b11777ee8?auto=format&fit=crop&w=150&q=80' },
+    { id: 3, pet: 'Luna', owner: 'Sarah Miller', time: '02:00 PM', type: 'Surgery', status: 'Confirmed', img: 'https://images.unsplash.com/photo-1513245543132-31f507417b26?auto=format&fit=crop&w=150&q=80' },
   ];
 
+  const handleOpenCompleteForm = (appt) => {
+    setSelectedAppointment(appt);
+    setIsFormOpen(true);
+  };
+
+  const handleCompleteVisit = (data) => {
+    console.log("Visit Completed for", selectedAppointment?.id, "Data:", data);
+    // TODO: Send to backend
+    alert(data.enableFollowUp ? `Visit Completed. Follow-up enabled for ${data.days} days.` : "Visit completed.");
+  };
+
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-      {/* Left: Appointments List */}
-      <div className="lg:col-span-2 space-y-6">
-        <div className="flex justify-between items-center">
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Schedule</h1>
-          <div className="flex bg-white dark:bg-slate-800 rounded-lg p-1 border border-slate-200 dark:border-slate-700">
-            <button onClick={() => setView('day')} className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${view === 'day' ? 'bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-white' : 'text-slate-500'}`}>Day</button>
-            <button onClick={() => setView('week')} className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${view === 'week' ? 'bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-white' : 'text-slate-500'}`}>Week</button>
-          </div>
+    <div className="space-y-6 animate-in fade-in duration-500">
+      
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-3xl font-bold text-slate-900 dark:text-white">Schedule</h1>
+          <p className="text-slate-500 dark:text-slate-400">Manage your appointments for today.</p>
         </div>
-
-        <div className="space-y-4">
-          {appointments.map((apt) => (
-            <div key={apt.id} className="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col sm:flex-row items-start sm:items-center gap-6 hover:shadow-md transition-all">
-              <div className="flex flex-col items-center justify-center w-16 h-16 bg-slate-50 dark:bg-slate-700/50 rounded-2xl border border-slate-100 dark:border-slate-700">
-                <span className="text-xs font-bold text-slate-400 uppercase">{apt.time.split(' ')[1]}</span>
-                <span className="text-lg font-bold text-slate-900 dark:text-white">{apt.time.split(' ')[0]}</span>
-              </div>
-              
-              <div className="flex-1">
-                <div className="flex items-center gap-3">
-                  <h3 className="text-lg font-bold text-slate-900 dark:text-white">{apt.pet}</h3>
-                  <span className="text-sm text-slate-500">owned by {apt.owner}</span>
-                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide border ${
-                    apt.status === 'Confirmed' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-amber-50 text-amber-600 border-amber-100'
-                  }`}>
-                    {apt.status}
-                  </span>
-                </div>
-                <div className="flex items-center gap-4 mt-1 text-sm text-slate-500">
-                  <span className="flex items-center gap-1"><Stethoscope className="w-3 h-3" /> {apt.type}</span>
-                  <span className="flex items-center gap-1">
-                    {apt.mode === 'Video Call' ? <Video className="w-3 h-3 text-blue-500" /> : <MapPin className="w-3 h-3 text-red-500" />} 
-                    {apt.mode}
-                  </span>
-                </div>
-              </div>
-
-              <div className="flex gap-2 w-full sm:w-auto">
-                <button className="flex-1 sm:flex-none px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold rounded-xl transition-colors">
-                  Start
-                </button>
-                <button className="p-2 border border-slate-200 dark:border-slate-700 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-400">
-                  <MoreVertical className="w-5 h-5" />
-                </button>
-              </div>
-            </div>
-          ))}
+        <div className="p-2 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
+           <Calendar className="w-5 h-5 text-slate-500" />
         </div>
       </div>
 
-      {/* Right: Availability Panel */}
-      <div className="space-y-6">
-        <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm sticky top-24">
-          <h3 className="font-bold text-slate-900 dark:text-white mb-4">Availability Settings</h3>
-          
-          <div className="flex items-center justify-between mb-6 p-3 bg-slate-50 dark:bg-slate-700/50 rounded-xl">
-            <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Accepting Appointments</span>
-            <button 
-              onClick={() => setIsAvailable(!isAvailable)}
-              className={`w-11 h-6 rounded-full transition-colors flex items-center px-0.5 ${isAvailable ? 'bg-emerald-500' : 'bg-slate-300'}`}
-            >
-              <div className={`w-5 h-5 bg-white rounded-full shadow-sm transform transition-transform ${isAvailable ? 'translate-x-5' : 'translate-x-0'}`} />
-            </button>
-          </div>
+      <div className="space-y-4">
+        {appointments.map((appt) => (
+          <div key={appt.id} className="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col md:flex-row items-center gap-6 hover:shadow-md transition-all">
+            
+            {/* Time Column */}
+            <div className="flex flex-col items-center min-w-[80px]">
+               <span className="text-sm font-bold text-slate-500">{appt.time.split(' ')[0]}</span>
+               <span className="text-xs font-bold text-slate-400">{appt.time.split(' ')[1]}</span>
+               <div className="h-full w-0.5 bg-slate-100 dark:bg-slate-700 mt-2"></div>
+            </div>
 
-          <div className="space-y-4">
-            <div>
-              <label className="text-xs font-bold text-slate-400 uppercase">Working Hours</label>
-              <div className="flex items-center gap-2 mt-2">
-                <input type="time" defaultValue="09:00" className="flex-1 p-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-transparent text-sm dark:text-white" />
-                <span className="text-slate-400">-</span>
-                <input type="time" defaultValue="17:00" className="flex-1 p-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-transparent text-sm dark:text-white" />
-              </div>
+            {/* Info Column */}
+            <div className="flex-1 flex items-center gap-4 w-full">
+               <img src={appt.img} alt={appt.pet} className="w-16 h-16 rounded-2xl object-cover shadow-sm" />
+               <div>
+                  <h3 className="text-lg font-bold text-slate-900 dark:text-white">{appt.pet} <span className="text-sm font-medium text-slate-500">({appt.owner})</span></h3>
+                  <div className="flex items-center gap-3 mt-1">
+                     <span className="text-xs font-bold px-2 py-1 bg-blue-50 text-blue-600 rounded-lg border border-blue-100">{appt.type}</span>
+                     <span className={`text-xs font-bold px-2 py-1 rounded-lg border flex items-center gap-1 ${appt.status === 'Confirmed' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-amber-50 text-amber-600 border-amber-100'}`}>
+                        {appt.status === 'Confirmed' ? <CheckCircle className="w-3 h-3"/> : <Clock className="w-3 h-3"/>}
+                        {appt.status}
+                     </span>
+                  </div>
+               </div>
             </div>
-            <div>
-              <label className="text-xs font-bold text-slate-400 uppercase">Break Time</label>
-              <div className="flex items-center gap-2 mt-2">
-                <input type="time" defaultValue="13:00" className="flex-1 p-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-transparent text-sm dark:text-white" />
-                <span className="text-slate-400">-</span>
-                <input type="time" defaultValue="14:00" className="flex-1 p-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-transparent text-sm dark:text-white" />
-              </div>
+
+            {/* Actions Column */}
+            <div className="flex items-center gap-3 w-full md:w-auto mt-4 md:mt-0">
+               <button className="p-2 rounded-xl bg-slate-100 dark:bg-slate-700 text-slate-500 hover:text-blue-600 hover:bg-blue-50 transition-colors">
+                  <Video className="w-5 h-5" />
+               </button>
+               
+               {/* COMPLETE BUTTON (Triggers the Form) */}
+               <button 
+                 onClick={() => handleOpenCompleteForm(appt)}
+                 className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold rounded-xl shadow-lg shadow-emerald-500/20 flex items-center gap-2 transition-all"
+               >
+                  <Stethoscope className="w-4 h-4" /> Complete
+               </button>
             </div>
-            <button className="w-full mt-2 py-2.5 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-xl text-sm font-bold shadow-lg">
-              Update Schedule
-            </button>
+
           </div>
-        </div>
+        ))}
       </div>
+
+      {/* --- INTEGRATED CONSULTATION FORM --- */}
+      <ConsultationForm 
+        isOpen={isFormOpen} 
+        onClose={() => setIsFormOpen(false)} 
+        onComplete={handleCompleteVisit} 
+      />
+
     </div>
   );
 };
 
-export default Schedule;
+export default VetSchedule;

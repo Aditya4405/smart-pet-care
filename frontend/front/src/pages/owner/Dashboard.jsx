@@ -1,20 +1,26 @@
 import React from 'react';
-import { Calendar, Bell, Activity, ArrowRight, Heart, ShoppingBag } from 'lucide-react';
+import { 
+  Calendar, Bell, Activity, ArrowRight, Heart, ShoppingBag, Clock 
+} from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import FollowUpCard from '../../components/owner/FollowUpCard'; // <--- New Import
+import { mockAppointments } from '../../data/mockData';        // <--- New Import
 
 const Dashboard = () => {
   const navigate = useNavigate();
+  // Get user from local storage (or mock)
+  const user = JSON.parse(localStorage.getItem('user')) || { firstName: 'Aditya' };
 
   return (
-    <div className="space-y-8 pb-12">
+    <div className="space-y-8 pb-12 animate-in fade-in duration-500">
       
       {/* 1. Welcome Section */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white tracking-tight">
-            Good Morning, Aditya! ☀️
+          <h1 className="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">
+            Good Morning, {user.firstName}! ☀️
           </h1>
-          <p className="text-gray-500 dark:text-gray-400 mt-1">Here is what's happening with your furry friends today.</p>
+          <p className="text-slate-500 dark:text-slate-400 mt-1">Here is what's happening with your furry friends today.</p>
         </div>
         <button 
           onClick={() => navigate('/owner/appointments/book')}
@@ -43,73 +49,92 @@ const Dashboard = () => {
         </div>
 
         {/* KPI 2: Health Alerts */}
-        <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-100 dark:border-gray-700 shadow-sm hover:shadow-md transition-all">
+        <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md transition-all">
           <div className="flex justify-between items-start mb-4">
             <div className="p-2 bg-amber-50 dark:bg-amber-900/20 rounded-lg">
               <Bell className="w-6 h-6 text-amber-500" />
             </div>
-            <span className="text-2xl font-bold text-gray-900 dark:text-white">1</span>
+            <span className="text-2xl font-bold text-slate-900 dark:text-white">1</span>
           </div>
-          <h3 className="font-bold text-gray-900 dark:text-white">Action Required</h3>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 mb-4">Luna's vaccination is overdue by 3 days.</p>
+          <h3 className="font-bold text-slate-900 dark:text-white">Action Required</h3>
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1 mb-4">Luna's vaccination is overdue by 3 days.</p>
           <button className="text-sm font-semibold text-amber-600 hover:text-amber-700 dark:text-amber-400 flex items-center gap-1">
             Schedule Now <ArrowRight className="w-4 h-4" />
           </button>
         </div>
 
         {/* KPI 3: Active Pets */}
-        <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-100 dark:border-gray-700 shadow-sm hover:shadow-md transition-all">
+        <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md transition-all">
           <div className="flex justify-between items-start mb-4">
             <div className="p-2 bg-pink-50 dark:bg-pink-900/20 rounded-lg">
               <Heart className="w-6 h-6 text-pink-500" />
             </div>
-            <span className="text-2xl font-bold text-gray-900 dark:text-white">2</span>
+            <span className="text-2xl font-bold text-slate-900 dark:text-white">2</span>
           </div>
-          <h3 className="font-bold text-gray-900 dark:text-white">Your Pets</h3>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 mb-4">Bella is healthy. Luna needs attention.</p>
+          <h3 className="font-bold text-slate-900 dark:text-white">Your Pets</h3>
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1 mb-4">Bella is healthy. Luna needs attention.</p>
           <button onClick={() => navigate('/owner/pets')} className="text-sm font-medium text-cyan-600 hover:text-cyan-700">View All Pets →</button>
         </div>
       </div>
 
-      {/* 3. Main Workspace Split */}
+      {/* --- 3. NEW SECTION: ELIGIBLE FREE FOLLOW-UPS --- */}
+      <div className="bg-slate-50 dark:bg-slate-800/50 p-6 rounded-2xl border border-slate-200 dark:border-slate-700">
+        <div className="flex items-center justify-between mb-6">
+             <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <Clock className="w-5 h-5 text-emerald-600" /> Eligible Free Follow-Ups
+             </h2>
+             <span className="text-xs font-bold text-emerald-600 bg-emerald-100 px-3 py-1.5 rounded-lg border border-emerald-200">
+                Save on Fees
+             </span>
+        </div>
+        
+        {/* Grid of Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+           {mockAppointments.map(appt => (
+              <FollowUpCard key={appt.id} appointment={appt} />
+           ))}
+        </div>
+      </div>
+
+      {/* 4. Main Workspace Split */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         
         {/* Left Column (2/3): Activity & Marketplace */}
         <div className="lg:col-span-2 space-y-8">
           
-          <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center">
-              <h3 className="font-bold text-gray-900 dark:text-white flex items-center gap-2">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
+            <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center">
+              <h3 className="font-bold text-slate-900 dark:text-white flex items-center gap-2">
                 <Activity className="w-5 h-5 text-cyan-500" /> Recent Activity
               </h3>
             </div>
             {[1, 2, 3].map((item, idx) => (
-              <div key={idx} className="p-4 flex items-center gap-4 border-b border-gray-100 dark:border-gray-700 last:border-0 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                <div className="w-12 h-12 rounded-xl bg-gray-50 dark:bg-gray-700 flex items-center justify-center text-2xl">
+              <div key={idx} className="p-4 flex items-center gap-4 border-b border-slate-100 dark:border-slate-700 last:border-0 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">
+                <div className="w-12 h-12 rounded-xl bg-slate-50 dark:bg-slate-700 flex items-center justify-center text-2xl">
                   {idx === 0 ? '💉' : idx === 1 ? '🛒' : '📅'}
                 </div>
                 <div className="flex-1">
-                  <h4 className="font-semibold text-gray-900 dark:text-white">
+                  <h4 className="font-semibold text-slate-900 dark:text-white">
                     {idx === 0 ? 'Vaccination Completed' : idx === 1 ? 'Food Order Shipped' : 'Checkup Scheduled'}
                   </h4>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                  <p className="text-sm text-slate-500 dark:text-slate-400">
                     {idx === 0 ? 'Bella received Rabies shot.' : idx === 1 ? 'Premium Dog Food (10kg)' : 'Upcoming for Luna'}
                   </p>
                 </div>
-                <span className="text-xs font-medium text-gray-400">2h ago</span>
+                <span className="text-xs font-medium text-slate-400">2h ago</span>
               </div>
             ))}
           </div>
 
-          <div className="bg-gradient-to-r from-gray-900 to-gray-800 dark:from-gray-800 dark:to-gray-900 rounded-2xl p-8 text-white relative overflow-hidden">
+          <div className="bg-gradient-to-r from-slate-900 to-slate-800 dark:from-slate-800 dark:to-slate-900 rounded-2xl p-8 text-white relative overflow-hidden">
             <div className="relative z-10 max-w-md">
               <div className="flex items-center gap-2 mb-4 text-cyan-400">
                 <ShoppingBag className="w-5 h-5" />
                 <span className="text-xs font-bold tracking-widest uppercase">Pet Marketplace</span>
               </div>
               <h3 className="text-2xl font-bold mb-2">Treat your pets to the best.</h3>
-              <p className="text-gray-300 mb-6">Get 20% off on your first order.</p>
-              <button onClick={() => navigate('/owner/marketplace')} className="bg-white text-gray-900 px-6 py-2 rounded-lg font-bold hover:bg-gray-100 transition-colors">
+              <p className="text-slate-300 mb-6">Get 20% off on your first order.</p>
+              <button onClick={() => navigate('/owner/marketplace')} className="bg-white text-slate-900 px-6 py-2 rounded-lg font-bold hover:bg-slate-100 transition-colors">
                 Shop Now
               </button>
             </div>

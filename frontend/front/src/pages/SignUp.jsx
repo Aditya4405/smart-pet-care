@@ -1,22 +1,28 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import PublicNavbar from '../components/PublicNavbar'; 
-import { ShieldCheck, User, Users } from 'lucide-react'; 
+import PublicNavbar from '../components/PublicNavbar';
+import { ShieldCheck, User, Users, Eye, EyeOff } from 'lucide-react';
 
 const SignUp = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  
+
   // State
   const [isLogin, setIsLogin] = useState(location.pathname === '/login');
-  const [isAdminLogin, setIsAdminLogin] = useState(false); 
-  const [userType, setUserType] = useState('user'); // 'user' or 'vet'
+  const [isAdminLogin, setIsAdminLogin] = useState(false);
+  const [userType, setUserType] = useState('user'); 
+  
+  // Password Visibility State
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   // Listen for URL changes
   useEffect(() => {
     setIsLogin(location.pathname === '/login');
     setErrors({});
-    setIsAdminLogin(false); 
+    setIsAdminLogin(false);
+    setShowPassword(false);
+    setShowConfirmPassword(false);
   }, [location.pathname]);
 
   // Form Data
@@ -60,7 +66,6 @@ const SignUp = () => {
       if (userType === 'vet') {
          if (!formData.clinicName) newErrors.clinicName = 'Clinic Name required';
          if (!formData.licenseNumber) newErrors.licenseNumber = 'License required';
-         // Note: Certificate validation can be added here if strict
       }
     }
     setErrors(newErrors);
@@ -84,11 +89,9 @@ const SignUp = () => {
         let headers = {};
 
         if (isLogin) {
-            // LOGIN PAYLOAD
             body = JSON.stringify({ email: formData.email, password: formData.password });
             headers = { 'Content-Type': 'application/json' };
         } else {
-            // REGISTER PAYLOAD (Multipart for Vet file upload support)
             const dataPayload = { ...formData };
             dataPayload.role = userType === 'vet' ? 'VET' : 'USER';
             delete dataPayload.confirmPassword;
@@ -115,32 +118,39 @@ const SignUp = () => {
             if (isLogin) {
                 // --- LOGIN SUCCESS ---
                 
-                // 1. Normalize Role to Uppercase (Fixes "vet" vs "VET" bug)
+                // 1. Normalize Role
                 const normalizedRole = userData.role ? userData.role.toUpperCase() : 'USER';
                 
-                // 2. Strict Admin Check
-                if (isAdminLogin && normalizedRole !== 'ADMIN') {
-                    alert("Access Denied: You are not an Administrator.");
-                    return; 
+                // 2. STRICT ROLE ENFORCEMENT (The Fix)
+                
+                // Check A: Admin trying to use User Login tab
+                if (!isAdminLogin && normalizedRole === 'ADMIN') {
+                    alert("Account mismatch: Please switch to 'Admin Login' to sign in.");
+                    return; // STOP execution
                 }
 
-                // 3. Save User
+                // Check B: User/Vet trying to use Admin Login tab
+                if (isAdminLogin && normalizedRole !== 'ADMIN') {
+                    alert("Access Denied: You do not have Administrator privileges.");
+                    return; // STOP execution
+                }
+
+                // 3. If checks pass, save user
                 const finalUser = { ...userData, role: normalizedRole };
                 localStorage.setItem('user', JSON.stringify(finalUser));
                 
                 alert("Login Successful!");
                 
-                // 4. Redirect (Updated for Dashboard)
+                // 4. Redirect
                 if (normalizedRole === 'ADMIN') {
                     navigate('/admin/dashboard');
                 } else if (normalizedRole === 'VET') {
-                    navigate('/vet/dashboard'); // <--- Redirects to the visual dashboard
+                    navigate('/vet/dashboard');
                 } else {
                     navigate('/owner/dashboard');
                 }
 
             } else {
-                // --- REGISTER SUCCESS ---
                 if (userType === 'vet') {
                     alert("Registration Request Sent! Please wait for Admin Approval.");
                 } else {
@@ -159,6 +169,18 @@ const SignUp = () => {
         alert("Connection Failed. Is Backend running?");
     }
   };
+
+  // Helper for Password Toggle
+  const PasswordToggleBtn = ({ isVisible, onToggle }) => (
+    <button
+      type="button"
+      onClick={onToggle}
+      className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 focus:outline-none"
+      tabIndex="-1"
+    >
+      {isVisible ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+    </button>
+  );
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col font-sans transition-colors duration-300 pt-24">
@@ -184,7 +206,6 @@ const SignUp = () => {
 
           <form onSubmit={handleSubmit} className="space-y-5">
             
-            {/* LOGIN MODE SWITCHER */}
             {isLogin && (
                 <div className="grid grid-cols-2 gap-4 mb-2">
                     <button 
@@ -204,7 +225,6 @@ const SignUp = () => {
                 </div>
             )}
 
-            {/* SIGNUP MODE SWITCHER */}
             {!isLogin && (
               <div className="grid grid-cols-2 gap-4 mb-6">
                 <button type="button" onClick={() => setUserType('user')} className={`group flex flex-col items-center justify-center p-4 rounded-2xl border-2 transition-all duration-200 ${userType === 'user' ? 'border-cyan-500 bg-cyan-50/50 dark:bg-cyan-900/20 text-cyan-700 dark:text-cyan-400' : 'border-gray-100 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 text-gray-500 dark:text-gray-400'}`}>
@@ -224,18 +244,27 @@ const SignUp = () => {
 
             {isLogin ? (
               <>
-                <InputField label="Email Address" name="email" type="email" value={formData.email} onChange={handleChange} placeholder={isAdminLogin ? "Enter admin email" : "Enter your email"} error={errors.email} />
-                <InputField label="Password" name="password" type="password" value={formData.password} onChange={handleChange} placeholder="••••••••" error={errors.password} />
+                <InputField label="Email Address" name="email" type="email" value={formData.email} onChange={handleChange} placeholder={isAdminLogin ? "Enter Admin Email " : "Enter your email"} error={errors.email} />
+                <InputField 
+                  label="Password" 
+                  name="password" 
+                  type={showPassword ? "text" : "password"} 
+                  value={formData.password} 
+                  onChange={handleChange} 
+                  placeholder="••••••••" 
+                  error={errors.password} 
+                  endAdornment={<PasswordToggleBtn isVisible={showPassword} onToggle={() => setShowPassword(!showPassword)} />}
+                />
               </>
             ) : (
               <>
                 <div className="grid grid-cols-2 gap-4">
-                  <InputField label="First Name" name="first Name" value={formData.firstName} onChange={handleChange} placeholder="First" error={errors.firstName} />
+                  <InputField label="First Name" name="firstName" value={formData.firstName} onChange={handleChange} placeholder="First Name" error={errors.firstName} />
                   <InputField label="Last Name" name="lastName" value={formData.lastName} onChange={handleChange} placeholder="Last Name" error={errors.lastName} />
                 </div>
                 <InputField label="Email Address" name="email" type="email" value={formData.email} onChange={handleChange} placeholder="Enter your email" error={errors.email} />
                 <div className="grid grid-cols-2 gap-4">
-                  <InputField label="Phone Number" name="phone" type="tel" value={formData.phone} onChange={handleChange} placeholder="Enter Phone no" error={errors.phone} />
+                  <InputField label="Phone Number" name="phone" type="tel" value={formData.phone} onChange={handleChange} placeholder="Enter Phone No" error={errors.phone} />
                   <div className="flex flex-col gap-1.5">
                     <label className="text-sm font-semibold text-gray-700 dark:text-gray-300 ml-1">Gender</label>
                     <div className="relative">
@@ -246,8 +275,26 @@ const SignUp = () => {
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
-                  <InputField label="Password" name="password" type="password" value={formData.password} onChange={handleChange} placeholder="••••••••" error={errors.password} />
-                  <InputField label="Confirm" name="confirmPassword" type="password" value={formData.confirmPassword} onChange={handleChange} placeholder="••••••••" error={errors.confirmPassword} />
+                  <InputField 
+                    label="Password" 
+                    name="password" 
+                    type={showPassword ? "text" : "password"} 
+                    value={formData.password} 
+                    onChange={handleChange} 
+                    placeholder="••••••••" 
+                    error={errors.password}
+                    endAdornment={<PasswordToggleBtn isVisible={showPassword} onToggle={() => setShowPassword(!showPassword)} />}
+                  />
+                  <InputField 
+                    label="Confirm" 
+                    name="confirmPassword" 
+                    type={showConfirmPassword ? "text" : "password"} 
+                    value={formData.confirmPassword} 
+                    onChange={handleChange} 
+                    placeholder="••••••••" 
+                    error={errors.confirmPassword}
+                    endAdornment={<PasswordToggleBtn isVisible={showConfirmPassword} onToggle={() => setShowConfirmPassword(!showConfirmPassword)} />}
+                  />
                 </div>
                 
                 {userType === 'vet' && (
@@ -302,10 +349,21 @@ const SignUp = () => {
   );
 };
 
-const InputField = ({ label, name, type = "text", value, onChange, placeholder, error }) => (
+const InputField = ({ label, name, type = "text", value, onChange, placeholder, error, endAdornment }) => (
   <div className="flex flex-col gap-1.5">
     <label className="text-sm font-semibold text-gray-700 dark:text-gray-300 ml-1">{label}</label>
-    <input type={type} name={name} value={value} onChange={onChange} placeholder={placeholder} aria-invalid={!!error} className={`w-full px-4 py-3 rounded-xl border ${error ? 'border-red-500' : 'border-gray-200 dark:border-gray-600'} bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/20`} />
+    <div className="relative">
+        <input 
+            type={type} 
+            name={name} 
+            value={value} 
+            onChange={onChange} 
+            placeholder={placeholder} 
+            aria-invalid={!!error} 
+            className={`w-full px-4 py-3 rounded-xl border ${error ? 'border-red-500' : 'border-gray-200 dark:border-gray-600'} bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/20 ${endAdornment ? 'pr-10' : ''}`} 
+        />
+        {endAdornment}
+    </div>
     {error && <span className="text-xs text-red-500 ml-1">{error}</span>}
   </div>
 );

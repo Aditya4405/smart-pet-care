@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { 
   Bell, Shield, Globe, Trash2, Moon, Sun, Monitor, 
-  Smartphone, Eye, EyeOff, ChevronRight, AlertTriangle 
+  Eye, EyeOff, ChevronRight, AlertTriangle 
 } from 'lucide-react';
 
 // --- REUSABLE COMPONENTS ---
@@ -16,7 +16,7 @@ const Section = ({ title, description, children, className = "" }) => (
   </div>
 );
 
-// ✅ FIXED TOGGLE COMPONENT
+// Robust Toggle Component
 const Toggle = ({ label, description, checked, onChange }) => (
   <div className="flex items-center justify-between py-4 first:pt-0 last:pb-0">
     <div className="pr-4">
@@ -26,8 +26,8 @@ const Toggle = ({ label, description, checked, onChange }) => (
     <button 
       type="button"
       onClick={() => onChange(!checked)}
-      className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 ${
-        checked ? 'bg-teal-600' : 'bg-slate-200 dark:bg-slate-700'
+      className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 ${
+        checked ? 'bg-emerald-600' : 'bg-slate-200 dark:bg-slate-700'
       }`}
     >
       <span
@@ -40,14 +40,13 @@ const Toggle = ({ label, description, checked, onChange }) => (
   </div>
 );
 
-// --- SECTIONS ---
+// --- SETTINGS SECTIONS ---
 
 const NotificationsSection = () => {
   const [toggles, setToggles] = useState({
     appointments: true,
-    vaccinations: true,
-    marketplace: false,
-    messages: true,
+    emergencies: true,
+    reviews: false,
     marketing: false,
     sms: true,
   });
@@ -56,40 +55,34 @@ const NotificationsSection = () => {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
-      <Section title="Alerts & Reminders" description="Manage how you receive important updates.">
+      <Section title="Practice Alerts" description="Manage how you receive updates about your clinic.">
         <div className="divide-y divide-slate-100 dark:divide-slate-700/50">
           <Toggle 
-            label="Appointment Reminders" 
-            description="Get notified 24h before your vet visit."
+            label="New Appointment Requests" 
+            description="Get notified when a pet owner books a slot."
             checked={toggles.appointments} 
             onChange={() => toggle('appointments')} 
           />
           <Toggle 
-            label="Vaccination Alerts" 
-            description="Receive alerts when vaccinations are due."
-            checked={toggles.vaccinations} 
-            onChange={() => toggle('vaccinations')} 
+            label="Emergency Alerts" 
+            description="High priority notifications for critical cases."
+            checked={toggles.emergencies} 
+            onChange={() => toggle('emergencies')} 
           />
           <Toggle 
-            label="Vet Messages" 
-            description="Direct messages from your veterinarian."
-            checked={toggles.messages} 
-            onChange={() => toggle('messages')} 
+            label="Patient Reviews" 
+            description="When a client leaves feedback."
+            checked={toggles.reviews} 
+            onChange={() => toggle('reviews')} 
           />
         </div>
       </Section>
 
-      <Section title="Marketing & Promo" description="Stay updated with the latest deals.">
+      <Section title="Communication" description="Manage marketing and direct messages.">
          <div className="divide-y divide-slate-100 dark:divide-slate-700/50">
           <Toggle 
-            label="Marketplace Updates" 
-            description="New products and discounts on pet food."
-            checked={toggles.marketplace} 
-            onChange={() => toggle('marketplace')} 
-          />
-          <Toggle 
-            label="Marketing Emails" 
-            description="Newsletters and product features."
+            label="Platform Updates" 
+            description="News about VetConsole features."
             checked={toggles.marketing} 
             onChange={() => toggle('marketing')} 
           />
@@ -110,16 +103,16 @@ const SecuritySection = () => {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
-      <Section title="Password" description="Ensure your account uses a strong password.">
+      <Section title="Password" description="Update your password to keep your account secure.">
         <div className="space-y-4 max-w-md">
           <div>
             <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1">Current Password</label>
-            <input type="password" className="w-full px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 outline-none focus:ring-2 focus:ring-teal-500" />
+            <input type="password" className="w-full px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 outline-none focus:ring-2 focus:ring-emerald-500" />
           </div>
           <div>
             <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1">New Password</label>
             <div className="relative">
-              <input type={showPass ? "text" : "password"} className="w-full px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 outline-none focus:ring-2 focus:ring-teal-500" />
+              <input type={showPass ? "text" : "password"} className="w-full px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 outline-none focus:ring-2 focus:ring-emerald-500" />
               <button onClick={() => setShowPass(!showPass)} className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600">
                 {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
@@ -131,40 +124,10 @@ const SecuritySection = () => {
         </div>
       </Section>
 
-      <Section title="Active Sessions" description="Manage devices where you are currently logged in.">
-        <div className="space-y-4">
-          <div className="flex items-center justify-between p-3 rounded-lg bg-slate-50 dark:bg-slate-800/50">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-white dark:bg-slate-700 rounded-lg shadow-sm">
-                <Monitor className="w-5 h-5 text-slate-500" />
-              </div>
-              <div>
-                <p className="text-sm font-bold text-slate-900 dark:text-white">Windows PC - Chrome</p>
-                <p className="text-xs text-slate-500">Lucknow, India • Active Now</p>
-              </div>
-            </div>
-            <span className="text-xs font-bold text-green-600 bg-green-50 px-2 py-1 rounded-md border border-green-100">Current</span>
-          </div>
-          
-          <div className="flex items-center justify-between p-3 rounded-lg bg-slate-50 dark:bg-slate-800/50 opacity-70">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-white dark:bg-slate-700 rounded-lg shadow-sm">
-                <Smartphone className="w-5 h-5 text-slate-500" />
-              </div>
-              <div>
-                <p className="text-sm font-bold text-slate-900 dark:text-white">iPhone 14 - Safari</p>
-                <p className="text-xs text-slate-500">Lucknow, India • 2 days ago</p>
-              </div>
-            </div>
-            <button className="text-xs font-bold text-red-500 hover:underline">Revoke</button>
-          </div>
-        </div>
-      </Section>
-
       <Section title="Two-Factor Authentication">
         <Toggle 
           label="Enable 2FA" 
-          description="Add an extra layer of security to your account."
+          description="Add an extra layer of security via SMS or Authenticator App."
           checked={false} 
           onChange={() => {}} 
         />
@@ -175,10 +138,10 @@ const SecuritySection = () => {
 
 const PreferencesSection = () => (
   <div className="space-y-6 animate-in fade-in duration-500">
-    <Section title="Appearance" description="Customize how PetCare looks on your device.">
+    <Section title="Appearance" description="Customize your workspace theme.">
       <div className="grid grid-cols-3 gap-4">
         {['Light', 'Dark', 'System'].map((theme) => (
-          <button key={theme} className={`p-4 rounded-xl border-2 flex flex-col items-center gap-2 transition-all ${theme === 'System' ? 'border-teal-500 bg-teal-50 dark:bg-teal-900/20' : 'border-slate-200 dark:border-slate-700 hover:border-slate-300'}`}>
+          <button key={theme} className={`p-4 rounded-xl border-2 flex flex-col items-center gap-2 transition-all ${theme === 'System' ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20' : 'border-slate-200 dark:border-slate-700 hover:border-slate-300'}`}>
             {theme === 'Light' && <Sun className="w-6 h-6 text-amber-500" />}
             {theme === 'Dark' && <Moon className="w-6 h-6 text-indigo-500" />}
             {theme === 'System' && <Monitor className="w-6 h-6 text-slate-500" />}
@@ -195,7 +158,7 @@ const PreferencesSection = () => (
            <select className="w-full px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 outline-none">
              <option>English (US)</option>
              <option>Hindi</option>
-             <option>Spanish</option>
+             <option>French</option>
            </select>
         </div>
         <div>
@@ -203,18 +166,10 @@ const PreferencesSection = () => (
            <select className="w-full px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 outline-none">
              <option>(GMT+05:30) India Standard Time</option>
              <option>(GMT-08:00) Pacific Time</option>
+             <option>(GMT+00:00) UTC</option>
            </select>
         </div>
       </div>
-    </Section>
-    
-    <Section title="Units">
-        <Toggle 
-            label="Use Metric System" 
-            description="Display weight in kg and temperature in Celsius."
-            checked={true} 
-            onChange={() => {}} 
-        />
     </Section>
   </div>
 );
@@ -227,14 +182,14 @@ const DangerZoneSection = () => (
             <AlertTriangle className="w-5 h-5" /> Danger Zone
          </h3>
          <p className="text-sm text-red-600/80 dark:text-red-400/80 mt-1">
-            Irreversible actions. Please proceed with caution.
+            These actions are irreversible. Please proceed with caution.
          </p>
       </div>
       <div className="px-6 pb-6 space-y-4">
          <div className="flex items-center justify-between p-4 bg-white dark:bg-slate-900 rounded-xl border border-red-100 dark:border-red-900/20">
             <div>
-               <p className="font-bold text-slate-900 dark:text-white">Export Data</p>
-               <p className="text-xs text-slate-500">Download a copy of all your pet data.</p>
+               <p className="font-bold text-slate-900 dark:text-white">Export Practice Data</p>
+               <p className="text-xs text-slate-500">Download a full copy of your patient records and financial data.</p>
             </div>
             <button className="px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg text-sm font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800">
                Export CSV
@@ -244,7 +199,7 @@ const DangerZoneSection = () => (
          <div className="flex items-center justify-between p-4 bg-white dark:bg-slate-900 rounded-xl border border-red-100 dark:border-red-900/20">
             <div>
                <p className="font-bold text-slate-900 dark:text-white">Delete Account</p>
-               <p className="text-xs text-slate-500">Permanently delete your account and data.</p>
+               <p className="text-xs text-slate-500">Permanently delete your account and all associated data.</p>
             </div>
             <button className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-bold shadow-lg shadow-red-500/20">
                Delete Account
@@ -271,7 +226,7 @@ const Settings = () => {
     <div className="max-w-6xl mx-auto pb-12">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Settings</h1>
-        <p className="text-slate-500 dark:text-slate-400 mt-1">Manage your account preferences and security.</p>
+        <p className="text-slate-500 dark:text-slate-400 mt-1">Manage your practice configuration and security.</p>
       </div>
 
       <div className="flex flex-col lg:flex-row gap-8">
@@ -286,7 +241,7 @@ const Settings = () => {
                   activeTab === item.id
                     ? item.danger 
                         ? 'bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400'
-                        : 'bg-white dark:bg-slate-800 text-teal-600 dark:text-teal-400 shadow-sm ring-1 ring-slate-200 dark:ring-slate-700'
+                        : 'bg-white dark:bg-slate-800 text-emerald-600 dark:text-emerald-400 shadow-sm ring-1 ring-slate-200 dark:ring-slate-700'
                     : item.danger
                         ? 'text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10'
                         : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:text-slate-900 dark:hover:text-white'

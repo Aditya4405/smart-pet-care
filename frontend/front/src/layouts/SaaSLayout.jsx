@@ -1,7 +1,8 @@
 // src/layouts/SaaSLayout.jsx
 import React from 'react';
 import { Outlet } from 'react-router-dom';
-import TopNav from '../components/shared/TopNav';
+// 1. CHANGE THIS IMPORT
+import OwnerTopNav from '../components/owner/OwnerTopNav'; 
 
 const SaaSLayout = () => {
   return (
@@ -10,12 +11,13 @@ const SaaSLayout = () => {
       {/* 1. Layered Premium Background */}
       <div className="fixed inset-0 z-[-1] min-h-screen w-full bg-gradient-to-b from-slate-50 via-white to-slate-100 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 pointer-events-none" />
       
-      {/* 2. Subtle Radial Highlight (The "Invisible" Glow) */}
+      {/* 2. Subtle Radial Highlight */}
       <div className="fixed inset-0 z-[-1] bg-[radial-gradient(circle_at_20%_0%,rgba(56,189,248,0.08),transparent_40%)] dark:bg-[radial-gradient(circle_at_20%_0%,rgba(56,189,248,0.15),transparent_40%)] pointer-events-none" />
 
-      <TopNav />
+      {/* 2. USE THE NEW COMPONENT HERE */}
+      <OwnerTopNav />
       
-      {/* Main Content Workspace with Rhythm Spacing */}
+      {/* Main Content Workspace */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 lg:py-12 animate-in fade-in zoom-in-[0.99] duration-500 ease-out">
         <Outlet />
       </main>
