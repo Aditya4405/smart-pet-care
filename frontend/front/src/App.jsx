@@ -27,6 +27,7 @@ import Payments from './pages/owner/Payments';
 import Settings from './pages/owner/Settings';
 import Profile from './pages/Profile'; 
 
+
 // ================= VET PAGES =================
 import VetDashboard from './pages/vet/Dashboard';     
 import VetSchedule from './pages/vet/Schedule';       
@@ -36,6 +37,8 @@ import VetSettings from './pages/vet/Settings';
 
 // ================= SHARED PAGES =================
 import Marketplace from './pages/Marketplace'; 
+
+import VideoRoom from './pages/VideoRoom'; // Shared page
 
 // 🔒 ROLE GUARD COMPONENT
 const RoleRoute = ({ children, allowedRoles }) => {
@@ -130,6 +133,7 @@ function App() {
           <Route path="pets/add" element={<AddPet />} /> 
           <Route path="appointments" element={<Appointments />} />
           <Route path="appointments/book" element={<BookAppointment />} /> 
+          <Route path="video-room" element={<VideoRoom />} />
           <Route path="health" element={<HealthRecords />} />
           <Route path="marketplace" element={<Marketplace />} /> 
           <Route path="payments" element={<Payments />} />
