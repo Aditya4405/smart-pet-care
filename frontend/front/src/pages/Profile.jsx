@@ -1,10 +1,15 @@
-import React, { useState } from 'react';
-import { FileText, Download, CheckCircle, AlertCircle } from 'lucide-react'; // Added Icons
+import React, { useState, useRef } from 'react';
+import { FileText, Download, CheckCircle, Camera } from 'lucide-react';
 
 const Profile = () => {
-  // Mock User Data (In a real app, this comes from your backend)
+  const fileInputRef = useRef(null);
+
+  // Mock User Data (In real app, fetch from context/API)
   const user = JSON.parse(localStorage.getItem('user')) || {};
   const role = user.role || 'USER';
+
+  // State for dynamic profile image
+  const [profileImage, setProfileImage] = useState(user.imageUrl || null);
 
   const [formData, setFormData] = useState({
     firstName: user.firstName || 'Aditya',
@@ -17,8 +22,18 @@ const Profile = () => {
     clinicName: user.clinicName || 'Paws & Claws Care',
     specialization: user.specialization || 'Dermatology',
     licenseNumber: user.licenseNumber || 'VET-UP-2026-X99',
-    certificateUrl: user.certificateUrl || null // Assuming backend returns this URL
+    certificateUrl: user.certificateUrl || null // Mock certificate
   });
+
+  // Handlers
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const imageUrl = URL.createObjectURL(file); // Local preview
+      setProfileImage(imageUrl);
+      // TODO: Upload 'file' to your backend server here
+    }
+  };
 
   return (
     <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in duration-500">
@@ -36,14 +51,42 @@ const Profile = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         
-        {/* === LEFT COLUMN: AVATAR === */}
+        {/* === LEFT COLUMN: AVATAR CARD === */}
         <div className="lg:col-span-1 space-y-6">
           <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden relative">
             <div className="h-24 bg-gradient-to-r from-cyan-500 to-blue-600"></div>
             <div className="px-6 relative text-center">
-               <div className="-mt-12 mx-auto w-24 h-24 rounded-full border-4 border-white dark:border-slate-800 bg-white dark:bg-slate-700 flex items-center justify-center shadow-md text-3xl font-bold text-slate-400">
-                  {formData.firstName[0]}{formData.lastName[0]}
+               
+               {/* EDITABLE AVATAR CONTAINER */}
+               <div className="relative -mt-12 mx-auto w-24 h-24 rounded-full border-4 border-white dark:border-slate-800 bg-white dark:bg-slate-700 flex items-center justify-center shadow-md group overflow-hidden">
+                  
+                  {/* Show Image if it exists, otherwise show Initials */}
+                  {profileImage ? (
+                    <img src={profileImage} alt="Profile" className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="text-3xl font-bold text-slate-400">
+                        {formData.firstName[0]}{formData.lastName[0]}
+                    </span>
+                  )}
+
+                  {/* Hidden File Input */}
+                  <input 
+                    type="file" 
+                    ref={fileInputRef}
+                    onChange={handleImageChange}
+                    accept="image/*"
+                    className="hidden"
+                  />
+                  
+                  {/* Edit Overlay Button */}
+                  <button 
+                    onClick={() => fileInputRef.current.click()}
+                    className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 cursor-pointer"
+                  >
+                    <Camera className="w-8 h-8 text-white/90" />
+                  </button>
                </div>
+
                <div className="py-6">
                  <h2 className="text-xl font-bold text-slate-900 dark:text-white">{formData.firstName} {formData.lastName}</h2>
                  <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">{formData.email}</p>
@@ -138,6 +181,7 @@ const Profile = () => {
   );
 };
 
+// Reusable Input Component
 const InputGroup = ({ label, value, type="text", placeholder }) => (
   <div>
     <label className="text-sm font-semibold text-slate-700 dark:text-slate-300 ml-1">{label}</label>
