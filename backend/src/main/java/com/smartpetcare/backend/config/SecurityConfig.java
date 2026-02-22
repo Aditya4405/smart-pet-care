@@ -1,13 +1,17 @@
 package com.smartpetcare.backend.config;
 
+import com.smartpetcare.backend.security.JwtFilter;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.springframework.web.filter.CorsFilter;
@@ -20,18 +24,27 @@ import static org.springframework.security.config.Customizer.withDefaults;
 @EnableWebSecurity
 public class SecurityConfig {
 
+    @Autowired
+    private JwtFilter jwtFilter; // Injecting our new JWT Filter
+
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
             .csrf(csrf -> csrf.disable()) 
-            .cors(withDefaults()) // Uses the CorsFilter bean below
+            .cors(withDefaults()) 
+            // 1. Make session stateless because we are using JWT tokens now
+            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll() // Allow pre-flight checks
-                .requestMatchers("/api/users/register", "/api/users/login", "/uploads/**").permitAll()
-                .requestMatchers("/api/admin/**", "/api/users/pending-vets").hasRole("ADMIN") // Protect Admin Routes
+                // 2. Allow login, register, image uploads, and errors to be accessed without a token
+                .requestMatchers("/api/users/register", "/api/users/login", "/uploads/**", "/error").permitAll()
+                // 3. Protect Admin Routes (Requires token with ADMIN role)
+                .requestMatchers("/api/admin/**", "/api/users/pending-vets").hasRole("ADMIN") 
                 .anyRequest().authenticated()
-            )
-            .httpBasic(withDefaults());
+            );
+
+        // 4. Add the JWT Filter BEFORE the standard Spring Security filter checks
+        http.addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
@@ -50,9 +63,6 @@ public class SecurityConfig {
 
     @Bean
     public PasswordEncoder passwordEncoder() {
-        // NOTE: For this to work with your DataSeeder, ensure DataSeeder uses this encoder
-        // OR for simplicity in testing, you can use NoOpPasswordEncoder (not recommended for prod)
-        // For now, we keep BCrypt. Make sure your DataSeeder doesn't double-encode if you change logic.
         return new BCryptPasswordEncoder(); 
     }
 }

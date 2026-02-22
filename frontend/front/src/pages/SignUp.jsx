@@ -2,28 +2,30 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import PublicNavbar from '../components/PublicNavbar';
 import { ShieldCheck, User, Users, Eye, EyeOff } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 const SignUp = () => {
   const navigate = useNavigate();
-  const location = useLocation();
+  const locationPath = useLocation();
 
   // State
-  const [isLogin, setIsLogin] = useState(location.pathname === '/login');
+  const [isLogin, setIsLogin] = useState(locationPath.pathname === '/login');
   const [isAdminLogin, setIsAdminLogin] = useState(false);
   const [userType, setUserType] = useState('user'); 
   
   // Password Visibility State
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   // Listen for URL changes
   useEffect(() => {
-    setIsLogin(location.pathname === '/login');
+    setIsLogin(locationPath.pathname === '/login');
     setErrors({});
     setIsAdminLogin(false);
     setShowPassword(false);
     setShowConfirmPassword(false);
-  }, [location.pathname]);
+  }, [locationPath.pathname]);
 
   // Form Data
   const [formData, setFormData] = useState({
@@ -36,6 +38,7 @@ const SignUp = () => {
     confirmPassword: '',
     // Vet Specific
     clinicName: '',
+    location: '', // <--- NEW LOCATION FIELD
     specialization: '',
     yearsExperience: '',
     licenseNumber: '',
@@ -65,6 +68,7 @@ const SignUp = () => {
       
       if (userType === 'vet') {
          if (!formData.clinicName) newErrors.clinicName = 'Clinic Name required';
+         if (!formData.location) newErrors.location = 'Location required'; // <--- VALIDATION ADDED
          if (!formData.licenseNumber) newErrors.licenseNumber = 'License required';
       }
     }
@@ -81,6 +85,7 @@ const SignUp = () => {
         return;
     }
 
+    setIsLoading(true);
     const endpoint = isLogin ? '/login' : '/register';
     const url = `http://localhost:8082/api/users${endpoint}`;
 
@@ -116,110 +121,84 @@ const SignUp = () => {
             const userData = await response.json();
             
             if (isLogin) {
-                // --- LOGIN SUCCESS ---
-                
-                // 1. Normalize Role
                 const normalizedRole = userData.role ? userData.role.toUpperCase() : 'USER';
                 
-                // 2. STRICT ROLE ENFORCEMENT (The Fix)
-                
-                // Check A: Admin trying to use User Login tab
                 if (!isAdminLogin && normalizedRole === 'ADMIN') {
-                    alert("Account mismatch: Please switch to 'Admin Login' to sign in.");
-                    return; // STOP execution
+                    toast.error("Account mismatch: Please switch to 'Admin Login'.");
+                    setIsLoading(false);
+                    return; 
                 }
 
-                // Check B: User/Vet trying to use Admin Login tab
                 if (isAdminLogin && normalizedRole !== 'ADMIN') {
-                    alert("Access Denied: You do not have Administrator privileges.");
-                    return; // STOP execution
+                    toast.error("Access Denied: Administrator privileges required.");
+                    setIsLoading(false);
+                    return; 
                 }
 
-                // 3. If checks pass, save user
                 const finalUser = { ...userData, role: normalizedRole };
                 localStorage.setItem('user', JSON.stringify(finalUser));
+                localStorage.setItem('token', userData.token); 
                 
-                alert("Login Successful!");
+                toast.success("Login Successful!");
                 
-                // 4. Redirect
-                if (normalizedRole === 'ADMIN') {
-                    navigate('/admin/dashboard');
-                } else if (normalizedRole === 'VET') {
-                    navigate('/vet/dashboard');
-                } else {
-                    navigate('/owner/dashboard');
-                }
+                if (normalizedRole === 'ADMIN') navigate('/admin/dashboard');
+                else if (normalizedRole === 'VET') navigate('/vet/dashboard');
+                else navigate('/owner/dashboard');
 
             } else {
                 if (userType === 'vet') {
-                    alert("Registration Request Sent! Please wait for Admin Approval.");
+                    toast.success("Registration Request Sent! Please wait for Admin Approval.", { duration: 5000 });
                 } else {
-                    alert("Account Created Successfully! Please Login.");
+                    toast.success("Account Created Successfully! Please Sign In.");
                 }
                 navigate('/login');
             }
-
         } else {
             const errorMsg = await response.text();
-            alert("Error: " + errorMsg);
+            toast.error("Error: " + errorMsg);
         }
 
     } catch (error) {
         console.error("Error:", error);
-        alert("Connection Failed. Is Backend running?");
+        toast.error("Connection Failed. Is Backend running?");
+    } finally {
+        setIsLoading(false);
     }
   };
 
-  // Helper for Password Toggle
   const PasswordToggleBtn = ({ isVisible, onToggle }) => (
-    <button
-      type="button"
-      onClick={onToggle}
-      className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 focus:outline-none"
-      tabIndex="-1"
-    >
+    <button type="button" onClick={onToggle} className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 focus:outline-none" tabIndex="-1">
       {isVisible ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
     </button>
   );
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col font-sans transition-colors duration-300 pt-24">
-      
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex flex-col font-sans transition-colors duration-300 pt-24">
       <PublicNavbar /> 
-
       <div className="flex-grow flex items-center justify-center p-4 sm:p-6">
-        <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-xl w-full max-w-xl p-8 relative overflow-hidden border border-gray-100 dark:border-gray-700">
+        <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-xl w-full max-w-xl p-8 relative overflow-hidden border border-slate-100 dark:border-slate-700">
           
-          <div className="absolute top-6 right-6 sm:top-8 sm:right-8 bg-gray-100 dark:bg-gray-700 p-1 rounded-full flex text-xs sm:text-sm font-semibold">
-            <button onClick={() => navigate('/signup')} className={`px-4 py-1.5 rounded-full transition-all duration-200 ${!isLogin ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700'}`}>Sign up</button>
-            <button onClick={() => navigate('/login')} className={`px-4 py-1.5 rounded-full transition-all duration-200 ${isLogin ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700'}`}>Sign in</button>
+          <div className="absolute top-6 right-6 sm:top-8 sm:right-8 bg-slate-100 dark:bg-slate-700 p-1 rounded-full flex text-xs sm:text-sm font-semibold">
+            <button onClick={() => navigate('/signup')} className={`px-4 py-1.5 rounded-full transition-all duration-200 ${!isLogin ? 'bg-white dark:bg-slate-600 text-slate-900 dark:text-white shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700'}`}>Sign up</button>
+            <button onClick={() => navigate('/login')} className={`px-4 py-1.5 rounded-full transition-all duration-200 ${isLogin ? 'bg-white dark:bg-slate-600 text-slate-900 dark:text-white shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700'}`}>Sign in</button>
           </div>
 
           <div className="mb-8 pr-32">
-            <h2 className="text-3xl font-extrabold text-gray-900 dark:text-white mb-2 tracking-tight">
+            <h2 className="text-3xl font-extrabold text-slate-900 dark:text-white mb-2 tracking-tight">
                 {isAdminLogin ? 'Admin Portal' : (isLogin ? 'Welcome back' : 'Create account')}
             </h2>
-            <p className="text-gray-500 dark:text-gray-400 text-sm">
+            <p className="text-slate-500 dark:text-slate-400 text-sm">
                 {isAdminLogin ? 'Secure access for system administrators.' : (isLogin ? 'Enter your details to access your account.' : 'Join 10,000+ pet parents today.')}
             </p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-5">
-            
             {isLogin && (
                 <div className="grid grid-cols-2 gap-4 mb-2">
-                    <button 
-                        type="button" 
-                        onClick={() => setIsAdminLogin(false)}
-                        className={`flex items-center justify-center gap-2 p-3 rounded-xl border-2 transition-all duration-200 font-bold text-sm ${!isAdminLogin ? 'border-cyan-500 bg-cyan-50 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400' : 'border-gray-200 text-gray-500 hover:border-gray-300 dark:border-gray-700 dark:text-gray-400'}`}
-                    >
+                    <button type="button" onClick={() => setIsAdminLogin(false)} className={`flex items-center justify-center gap-2 p-3 rounded-xl border-2 transition-all duration-200 font-bold text-sm ${!isAdminLogin ? 'border-teal-500 bg-teal-50 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400' : 'border-slate-200 text-slate-500 hover:border-slate-300 dark:border-slate-700 dark:text-slate-400'}`}>
                         <User className="w-4 h-4" /> User Login
                     </button>
-                    <button 
-                        type="button" 
-                        onClick={() => setIsAdminLogin(true)}
-                        className={`flex items-center justify-center gap-2 p-3 rounded-xl border-2 transition-all duration-200 font-bold text-sm ${isAdminLogin ? 'border-slate-800 bg-slate-100 text-slate-800 dark:border-slate-500 dark:bg-slate-800 dark:text-white' : 'border-gray-200 text-gray-500 hover:border-gray-300 dark:border-gray-700 dark:text-gray-400'}`}
-                    >
+                    <button type="button" onClick={() => setIsAdminLogin(true)} className={`flex items-center justify-center gap-2 p-3 rounded-xl border-2 transition-all duration-200 font-bold text-sm ${isAdminLogin ? 'border-slate-800 bg-slate-100 text-slate-800 dark:border-slate-500 dark:bg-slate-800 dark:text-white' : 'border-slate-200 text-slate-500 hover:border-slate-300 dark:border-slate-700 dark:text-slate-400'}`}>
                         <ShieldCheck className="w-4 h-4" /> Admin Login
                     </button>
                 </div>
@@ -227,16 +206,12 @@ const SignUp = () => {
 
             {!isLogin && (
               <div className="grid grid-cols-2 gap-4 mb-6">
-                <button type="button" onClick={() => setUserType('user')} className={`group flex flex-col items-center justify-center p-4 rounded-2xl border-2 transition-all duration-200 ${userType === 'user' ? 'border-cyan-500 bg-cyan-50/50 dark:bg-cyan-900/20 text-cyan-700 dark:text-cyan-400' : 'border-gray-100 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 text-gray-500 dark:text-gray-400'}`}>
-                  <div className={`p-2 rounded-full mb-2 transition-colors ${userType === 'user' ? 'bg-cyan-100 dark:bg-cyan-800' : 'bg-gray-100 dark:bg-gray-700 group-hover:bg-gray-200'}`}>
-                    <Users className="w-6 h-6" />
-                  </div>
+                <button type="button" onClick={() => setUserType('user')} className={`group flex flex-col items-center justify-center p-4 rounded-2xl border-2 transition-all duration-200 ${userType === 'user' ? 'border-teal-500 bg-teal-50/50 dark:bg-teal-900/20 text-teal-700 dark:text-teal-400' : 'border-slate-100 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 text-slate-500 dark:text-slate-400'}`}>
+                  <div className={`p-2 rounded-full mb-2 transition-colors ${userType === 'user' ? 'bg-teal-100 dark:bg-teal-800' : 'bg-slate-100 dark:bg-slate-700 group-hover:bg-slate-200'}`}><Users className="w-6 h-6" /></div>
                   <span className="font-bold text-sm">Pet Owner</span>
                 </button>
-                <button type="button" onClick={() => setUserType('vet')} className={`group flex flex-col items-center justify-center p-4 rounded-2xl border-2 transition-all duration-200 ${userType === 'vet' ? 'border-cyan-500 bg-cyan-50/50 dark:bg-cyan-900/20 text-cyan-700 dark:text-cyan-400' : 'border-gray-100 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 text-gray-500 dark:text-gray-400'}`}>
-                  <div className={`p-2 rounded-full mb-2 transition-colors ${userType === 'vet' ? 'bg-cyan-100 dark:bg-cyan-800' : 'bg-gray-100 dark:bg-gray-700 group-hover:bg-gray-200'}`}>
-                    <ShieldCheck className="w-6 h-6" />
-                  </div>
+                <button type="button" onClick={() => setUserType('vet')} className={`group flex flex-col items-center justify-center p-4 rounded-2xl border-2 transition-all duration-200 ${userType === 'vet' ? 'border-teal-500 bg-teal-50/50 dark:bg-teal-900/20 text-teal-700 dark:text-teal-400' : 'border-slate-100 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 text-slate-500 dark:text-slate-400'}`}>
+                  <div className={`p-2 rounded-full mb-2 transition-colors ${userType === 'vet' ? 'bg-teal-100 dark:bg-teal-800' : 'bg-slate-100 dark:bg-slate-700 group-hover:bg-slate-200'}`}><ShieldCheck className="w-6 h-6" /></div>
                   <span className="font-bold text-sm">Veterinarian</span>
                 </button>
               </div>
@@ -245,16 +220,7 @@ const SignUp = () => {
             {isLogin ? (
               <>
                 <InputField label="Email Address" name="email" type="email" value={formData.email} onChange={handleChange} placeholder={isAdminLogin ? "Enter Admin Email " : "Enter your email"} error={errors.email} />
-                <InputField 
-                  label="Password" 
-                  name="password" 
-                  type={showPassword ? "text" : "password"} 
-                  value={formData.password} 
-                  onChange={handleChange} 
-                  placeholder="••••••••" 
-                  error={errors.password} 
-                  endAdornment={<PasswordToggleBtn isVisible={showPassword} onToggle={() => setShowPassword(!showPassword)} />}
-                />
+                <InputField label="Password" name="password" type={showPassword ? "text" : "password"} value={formData.password} onChange={handleChange} placeholder="••••••••" error={errors.password} endAdornment={<PasswordToggleBtn isVisible={showPassword} onToggle={() => setShowPassword(!showPassword)} />} />
               </>
             ) : (
               <>
@@ -266,55 +232,43 @@ const SignUp = () => {
                 <div className="grid grid-cols-2 gap-4">
                   <InputField label="Phone Number" name="phone" type="tel" value={formData.phone} onChange={handleChange} placeholder="Enter Phone No" error={errors.phone} />
                   <div className="flex flex-col gap-1.5">
-                    <label className="text-sm font-semibold text-gray-700 dark:text-gray-300 ml-1">Gender</label>
+                    <label className="text-sm font-semibold text-slate-700 dark:text-slate-300 ml-1">Gender</label>
                     <div className="relative">
-                      <select name="gender" value={formData.gender} onChange={handleChange} className={`w-full px-4 py-3 rounded-xl border ${errors.gender ? 'border-red-500' : 'border-gray-200 dark:border-gray-600'} bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white appearance-none`}>
+                      <select name="gender" value={formData.gender} onChange={handleChange} className={`w-full px-4 py-3 rounded-xl border ${errors.gender ? 'border-red-500' : 'border-slate-200 dark:border-slate-600'} bg-slate-50 dark:bg-slate-700 text-slate-900 dark:text-white appearance-none`}>
                         <option value="" disabled>Select</option><option value="male">Male</option><option value="female">Female</option><option value="other">Other</option>
                       </select>
                     </div>
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
-                  <InputField 
-                    label="Password" 
-                    name="password" 
-                    type={showPassword ? "text" : "password"} 
-                    value={formData.password} 
-                    onChange={handleChange} 
-                    placeholder="••••••••" 
-                    error={errors.password}
-                    endAdornment={<PasswordToggleBtn isVisible={showPassword} onToggle={() => setShowPassword(!showPassword)} />}
-                  />
-                  <InputField 
-                    label="Confirm" 
-                    name="confirmPassword" 
-                    type={showConfirmPassword ? "text" : "password"} 
-                    value={formData.confirmPassword} 
-                    onChange={handleChange} 
-                    placeholder="••••••••" 
-                    error={errors.confirmPassword}
-                    endAdornment={<PasswordToggleBtn isVisible={showConfirmPassword} onToggle={() => setShowConfirmPassword(!showConfirmPassword)} />}
-                  />
+                  <InputField label="Password" name="password" type={showPassword ? "text" : "password"} value={formData.password} onChange={handleChange} placeholder="••••••••" error={errors.password} endAdornment={<PasswordToggleBtn isVisible={showPassword} onToggle={() => setShowPassword(!showPassword)} />} />
+                  <InputField label="Confirm" name="confirmPassword" type={showConfirmPassword ? "text" : "password"} value={formData.confirmPassword} onChange={handleChange} placeholder="••••••••" error={errors.confirmPassword} endAdornment={<PasswordToggleBtn isVisible={showConfirmPassword} onToggle={() => setShowConfirmPassword(!showConfirmPassword)} />} />
                 </div>
                 
                 {userType === 'vet' && (
-                  <div className="pt-4 mt-2 border-t border-gray-100 dark:border-gray-700 animate-fadeIn">
+                  <div className="pt-4 mt-2 border-t border-slate-100 dark:border-slate-700 animate-fadeIn">
                       <div className="space-y-4">
-                        <InputField label="Clinic Name" name="clinicName" value={formData.clinicName} onChange={handleChange} placeholder="Happy Paws Clinic" error={errors.clinicName} />
+                        
+                        {/* --- NEW GRID FOR CLINIC & LOCATION --- */}
+                        <div className="grid grid-cols-2 gap-4">
+                            <InputField label="Clinic Name" name="clinicName" value={formData.clinicName} onChange={handleChange} placeholder="Happy Paws Clinic" error={errors.clinicName} />
+                            <InputField label="City / Location" name="location" value={formData.location} onChange={handleChange} placeholder="e.g. Mumbai, India" error={errors.location} />
+                        </div>
+
                         <div className="grid grid-cols-2 gap-4">
                             <InputField label="Specialization" name="specialization" value={formData.specialization} onChange={handleChange} placeholder="e.g. Surgery" error={errors.specialization} />
                             <InputField label="Years Exp." name="yearsExperience" type="number" value={formData.yearsExperience} onChange={handleChange} placeholder="5" error={errors.yearsExperience} />
                         </div>
                         <InputField label="License Number" name="licenseNumber" value={formData.licenseNumber} onChange={handleChange} placeholder="VET-12345678" error={errors.licenseNumber} />
                         <div className="flex flex-col gap-1.5">
-                          <label className="text-sm font-semibold text-gray-700 dark:text-gray-300 ml-1">Upload Certificate</label>
-                          <div className={`relative border-2 border-dashed rounded-xl p-4 flex flex-col items-center justify-center text-center transition-all ${errors.certificate ? 'border-red-400 bg-red-50' : 'border-gray-300 hover:border-cyan-500 bg-gray-50 dark:bg-gray-700'}`}>
+                          <label className="text-sm font-semibold text-slate-700 dark:text-slate-300 ml-1">Upload Certificate</label>
+                          <div className={`relative border-2 border-dashed rounded-xl p-4 flex flex-col items-center justify-center text-center transition-all ${errors.certificate ? 'border-red-400 bg-red-50' : 'border-slate-300 hover:border-teal-500 bg-slate-50 dark:bg-slate-700'}`}>
                             <input type="file" name="certificate" onChange={handleChange} accept=".pdf,.jpg,.png" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
                             <div className="pointer-events-none">
                                 {formData.certificate ? (
-                                    <span className="text-cyan-600 font-medium truncate max-w-[200px]">{formData.certificate.name}</span>
+                                    <span className="text-teal-600 font-medium truncate max-w-[200px]">{formData.certificate.name}</span>
                                 ) : (
-                                    <span className="text-xs font-bold text-gray-500">Click to upload (PDF/JPG)</span>
+                                    <span className="text-xs font-bold text-slate-500">Click to upload (PDF/JPG)</span>
                                 )}
                             </div>
                           </div>
@@ -325,24 +279,16 @@ const SignUp = () => {
               </>
             )}
 
-            <button 
-                type="submit" 
-                className={`w-full text-white font-bold py-3.5 rounded-xl shadow-lg transition-all mt-2 
-                ${isAdminLogin 
-                    ? 'bg-slate-800 hover:bg-slate-900 shadow-slate-500/30' 
-                    : 'bg-cyan-500 hover:bg-cyan-600 shadow-cyan-500/30'
-                }`}
-            >
-              {isAdminLogin ? 'Access Admin Portal' : (isLogin ? 'Sign In' : 'Create Account')}
+            <button disabled={isLoading} type="submit" className={`w-full text-white font-bold py-3.5 rounded-xl shadow-lg transition-all mt-2 disabled:opacity-70 ${isAdminLogin ? 'bg-slate-800 hover:bg-slate-900 shadow-slate-500/30' : 'bg-teal-500 hover:bg-teal-600 shadow-teal-500/30'}`}>
+              {isLoading ? 'Processing...' : (isAdminLogin ? 'Access Admin Portal' : (isLogin ? 'Sign In' : 'Create Account'))}
             </button>
           </form>
 
           <div className="mt-8 text-center">
-            <button onClick={() => navigate(isLogin ? '/signup' : '/login')} className="font-bold text-cyan-600 hover:underline">
+            <button onClick={() => navigate(isLogin ? '/signup' : '/login')} className="font-bold text-teal-600 hover:underline">
                 {isLogin ? 'Don\'t have an account? Sign up' : 'Already have an account? Sign in'}
             </button>
           </div>
-
         </div>
       </div>
     </div>
@@ -351,17 +297,9 @@ const SignUp = () => {
 
 const InputField = ({ label, name, type = "text", value, onChange, placeholder, error, endAdornment }) => (
   <div className="flex flex-col gap-1.5">
-    <label className="text-sm font-semibold text-gray-700 dark:text-gray-300 ml-1">{label}</label>
+    <label className="text-sm font-semibold text-slate-700 dark:text-slate-300 ml-1">{label}</label>
     <div className="relative">
-        <input 
-            type={type} 
-            name={name} 
-            value={value} 
-            onChange={onChange} 
-            placeholder={placeholder} 
-            aria-invalid={!!error} 
-            className={`w-full px-4 py-3 rounded-xl border ${error ? 'border-red-500' : 'border-gray-200 dark:border-gray-600'} bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/20 ${endAdornment ? 'pr-10' : ''}`} 
-        />
+        <input type={type} name={name} value={value} onChange={onChange} placeholder={placeholder} aria-invalid={!!error} className={`w-full px-4 py-3 rounded-xl border ${error ? 'border-red-500' : 'border-slate-200 dark:border-slate-600'} bg-slate-50 dark:bg-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-teal-500/20 ${endAdornment ? 'pr-10' : ''}`} />
         {endAdornment}
     </div>
     {error && <span className="text-xs text-red-500 ml-1">{error}</span>}

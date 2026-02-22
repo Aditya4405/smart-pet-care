@@ -1,5 +1,6 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { Toaster } from 'react-hot-toast';
 
 // ================= LAYOUTS =================
 import AdminLayout from './layouts/AdminLayout'; // New Sidebar Layout
@@ -27,7 +28,6 @@ import Payments from './pages/owner/Payments';
 import Settings from './pages/owner/Settings';
 import Profile from './pages/Profile'; 
 
-
 // ================= VET PAGES =================
 import VetDashboard from './pages/vet/Dashboard';     
 import VetSchedule from './pages/vet/Schedule';       
@@ -37,7 +37,6 @@ import VetSettings from './pages/vet/Settings';
 
 // ================= SHARED PAGES =================
 import Marketplace from './pages/Marketplace'; 
-
 import VideoRoom from './pages/VideoRoom'; // Shared page
 
 // 🔒 ROLE GUARD COMPONENT
@@ -71,81 +70,86 @@ const UnderConstruction = ({ title }) => (
 
 function App() {
   return (
-    <Router>
-      <Routes>
-        
-        {/* ================= PUBLIC ROUTES ================= */}
-        <Route path="/" element={<Landing />} /> 
-        <Route path="/signup" element={<SignUp />} />
-        <Route path="/login" element={<SignUp />} />
+    <>
+      {/* 🟢 THIS IS THE TOASTER THAT ENABLES THE POPUPS */}
+      <Toaster position="top-center" reverseOrder={false} />
 
-        {/* ================= ADMIN ROUTES (SaaS Command Center) ================= */}
-        <Route path="/admin" element={
-            <RoleRoute allowedRoles={['ADMIN']}>
-              <AdminLayout />
-            </RoleRoute>
-        }>
-          {/* 1. Dashboard & Core */}
-          <Route index element={<Navigate to="dashboard" replace />} />
-          <Route path="dashboard" element={<AdminDashboard />} />
+      <Router>
+        <Routes>
           
-          {/* 2. Management Modules */}
-          <Route path="users" element={<Users />} />
-          <Route path="doctors" element={<DoctorList />} />
-          <Route path="marketplace" element={<Marketplace />} /> 
-          
-          {/* 3. Placeholders for Future Modules (Prevents 404s on Sidebar clicks) */}
-          <Route path="appointments" element={<UnderConstruction title="Appointment Control Center" />} />
-          <Route path="payments" element={<UnderConstruction title="Financial Reports" />} />
-          <Route path="analytics" element={<UnderConstruction title="Deep Analytics" />} />
-          <Route path="moderation" element={<UnderConstruction title="Content Moderation" />} />
-          <Route path="support" element={<UnderConstruction title="Support Tickets" />} />
-          <Route path="audit-logs" element={<UnderConstruction title="System Audit Logs" />} />
-          <Route path="settings" element={<UnderConstruction title="Platform Settings" />} />
-        </Route>
+          {/* ================= PUBLIC ROUTES ================= */}
+          <Route path="/" element={<Landing />} /> 
+          <Route path="/signup" element={<SignUp />} />
+          <Route path="/login" element={<SignUp />} />
 
-        {/* ================= VET ROUTES ================= */}
-        <Route path="/vet" element={
-            <RoleRoute allowedRoles={['VET']}>
-              <VetLayout />
-            </RoleRoute>
-        }>
-          <Route index element={<Navigate to="dashboard" replace />} />
-          <Route path="dashboard" element={<VetDashboard />} />
-          <Route path="schedule" element={<VetSchedule />} />
-          <Route path="patients" element={<VetPatients />} />
-          <Route path="marketplace" element={<Marketplace />} /> 
-          <Route path="analytics" element={<VetAnalytics />} />
-          <Route path="profile" element={<Profile />} />
-          <Route path="settings" element={<VetSettings />} />
-        </Route>
+          {/* ================= ADMIN ROUTES (SaaS Command Center) ================= */}
+          <Route path="/admin" element={
+              <RoleRoute allowedRoles={['ADMIN']}>
+                <AdminLayout />
+              </RoleRoute>
+          }>
+            {/* 1. Dashboard & Core */}
+            <Route index element={<Navigate to="dashboard" replace />} />
+            <Route path="dashboard" element={<AdminDashboard />} />
+            
+            {/* 2. Management Modules */}
+            <Route path="users" element={<Users />} />
+            <Route path="doctors" element={<DoctorList />} />
+            <Route path="marketplace" element={<Marketplace />} /> 
+            
+            {/* 3. Placeholders for Future Modules (Prevents 404s on Sidebar clicks) */}
+            <Route path="appointments" element={<UnderConstruction title="Appointment Control Center" />} />
+            <Route path="payments" element={<UnderConstruction title="Financial Reports" />} />
+            <Route path="analytics" element={<UnderConstruction title="Deep Analytics" />} />
+            <Route path="moderation" element={<UnderConstruction title="Content Moderation" />} />
+            <Route path="support" element={<UnderConstruction title="Support Tickets" />} />
+            <Route path="audit-logs" element={<UnderConstruction title="System Audit Logs" />} />
+            <Route path="settings" element={<UnderConstruction title="Platform Settings" />} />
+          </Route>
 
-        {/* ================= OWNER ROUTES ================= */}
-        <Route path="/owner" element={
-            <RoleRoute allowedRoles={['USER']}>
-              <SaaSLayout />
-            </RoleRoute>
-        }>
-          <Route index element={<Navigate to="dashboard" replace />} />
-          <Route path="dashboard" element={<OwnerDashboard />} />
-          <Route path="doctors" element={<FindVet />} /> 
-          <Route path="pets" element={<MyPets />} />
-          <Route path="pets/add" element={<AddPet />} /> 
-          <Route path="appointments" element={<Appointments />} />
-          <Route path="appointments/book" element={<BookAppointment />} /> 
-          <Route path="video-room" element={<VideoRoom />} />
-          <Route path="health" element={<HealthRecords />} />
-          <Route path="marketplace" element={<Marketplace />} /> 
-          <Route path="payments" element={<Payments />} />
-          <Route path="settings" element={<Settings />} />
-          <Route path="profile" element={<Profile />} />
-        </Route>
+          {/* ================= VET ROUTES ================= */}
+          <Route path="/vet" element={
+              <RoleRoute allowedRoles={['VET']}>
+                <VetLayout />
+              </RoleRoute>
+          }>
+            <Route index element={<Navigate to="dashboard" replace />} />
+            <Route path="dashboard" element={<VetDashboard />} />
+            <Route path="schedule" element={<VetSchedule />} />
+            <Route path="patients" element={<VetPatients />} />
+            <Route path="marketplace" element={<Marketplace />} /> 
+            <Route path="analytics" element={<VetAnalytics />} />
+            <Route path="profile" element={<Profile />} />
+            <Route path="settings" element={<VetSettings />} />
+          </Route>
 
-        {/* ================= 404 CATCH ALL ================= */}
-        <Route path="*" element={<Navigate to="/" replace />} />
+          {/* ================= OWNER ROUTES ================= */}
+          <Route path="/owner" element={
+              <RoleRoute allowedRoles={['USER']}>
+                <SaaSLayout />
+              </RoleRoute>
+          }>
+            <Route index element={<Navigate to="dashboard" replace />} />
+            <Route path="dashboard" element={<OwnerDashboard />} />
+            <Route path="doctors" element={<FindVet />} /> 
+            <Route path="pets" element={<MyPets />} />
+            <Route path="pets/add" element={<AddPet />} /> 
+            <Route path="appointments" element={<Appointments />} />
+            <Route path="appointments/book" element={<BookAppointment />} /> 
+            <Route path="video-room" element={<VideoRoom />} />
+            <Route path="health" element={<HealthRecords />} />
+            <Route path="marketplace" element={<Marketplace />} /> 
+            <Route path="payments" element={<Payments />} />
+            <Route path="settings" element={<Settings />} />
+            <Route path="profile" element={<Profile />} />
+          </Route>
 
-      </Routes>
-    </Router>
+          {/* ================= 404 CATCH ALL ================= */}
+          <Route path="*" element={<Navigate to="/" replace />} />
+
+        </Routes>
+      </Router>
+    </>
   );
 }
 

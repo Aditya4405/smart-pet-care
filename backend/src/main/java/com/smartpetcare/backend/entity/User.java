@@ -52,6 +52,9 @@ public class User {
     private String certificateUrl;
  // 🔹 NEW FIELD: Status (APPROVED, PENDING, REJECTED)
     private String status;
+    private String location;
+    public String getLocation() { return location; }
+    public void setLocation(String location) { this.location = location; }
 
 	public String getStatus() {
 		return status;

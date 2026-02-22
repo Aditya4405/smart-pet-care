@@ -4,20 +4,26 @@ const DoctorList = () => {
   const [doctors, setDoctors] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Helper to get Auth Header
+  // ✅ FIX: Use the JWT Bearer Token instead of Basic Auth
   const getAuthHeader = () => {
-    const user = JSON.parse(localStorage.getItem('user'));
-    return 'Basic ' + btoa(user.email + ":" + user.password);
+    const token = localStorage.getItem('token');
+    return 'Bearer ' + token;
   };
 
   const fetchDoctors = async () => {
     try {
       const response = await fetch('http://localhost:8082/api/users/pending-vets', {
-         headers: { 'Authorization': getAuthHeader() }
+         method: 'GET', // Explicitly state the method
+         headers: { 
+             'Content-Type': 'application/json',
+             'Authorization': getAuthHeader() 
+         }
       });
       if (response.ok) {
         const data = await response.json();
         setDoctors(data);
+      } else {
+        console.error("Failed to fetch. Status:", response.status);
       }
     } catch (error) {
       console.error("Error fetching doctors:", error);
@@ -36,7 +42,10 @@ const DoctorList = () => {
     try {
       const response = await fetch(`http://localhost:8082/api/users/${id}/status?status=${status}`, {
         method: 'PUT',
-        headers: { 'Authorization': getAuthHeader() }
+        headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': getAuthHeader() 
+        }
       });
       if (response.ok) {
         alert(`Doctor ${status} successfully!`);

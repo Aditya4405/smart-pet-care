@@ -1,7 +1,6 @@
 package com.smartpetcare.backend.controller;
 
 import java.util.List;
-
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -9,12 +8,13 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.smartpetcare.backend.entity.User;
+import com.smartpetcare.backend.dto.LoginResponseDTO;
 import com.smartpetcare.backend.service.FileService;
 import com.smartpetcare.backend.service.UserService;
 
 @RestController
 @RequestMapping("/api/users")
-@CrossOrigin(origins = "http://localhost:5173") // Allow React Frontend
+@CrossOrigin(origins = "http://localhost:5173")
 public class UserController {
 
     @Autowired
@@ -23,25 +23,23 @@ public class UserController {
     @Autowired
     private FileService fileService; 
 
-    // --- REGISTER ENDPOINT (Multipart for File Upload) ---
+    // --- REGISTER ENDPOINT ---
     @PostMapping(value = "/register", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<?> registerUser(
-            @RequestPart("user") String userString, // User data as JSON string
-            @RequestPart(value = "certificate", required = false) MultipartFile certificate // File
+            @RequestPart("user") String userString, 
+            @RequestPart(value = "certificate", required = false) MultipartFile certificate 
     ) {
         try {
-            // 1. Convert JSON String to User object
             ObjectMapper mapper = new ObjectMapper();
             User user = mapper.readValue(userString, User.class);
             
-            // 2. Save File if present
             if (certificate != null && !certificate.isEmpty()) {
                 String fileName = fileService.saveFile(certificate);
                 user.setCertificateUrl(fileName);
             }
 
-            // 3. Register User
             User newUser = userService.registerUser(user);
+            newUser.setPassword(null); // Hide password in the response
             return ResponseEntity.ok(newUser);
             
         } catch (Exception e) {
@@ -53,8 +51,9 @@ public class UserController {
     @PostMapping("/login")
     public ResponseEntity<?> loginUser(@RequestBody User loginRequest) {
         try {
-            User user = userService.loginUser(loginRequest.getEmail(), loginRequest.getPassword());
-            return ResponseEntity.ok(user);
+            // Now returns the safe DTO
+            LoginResponseDTO response = userService.loginUser(loginRequest.getEmail(), loginRequest.getPassword());
+            return ResponseEntity.ok(response);
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
@@ -66,15 +65,19 @@ public class UserController {
         return ResponseEntity.ok(userService.getPendingVets());
     }
 
-    // --- ADMIN: UPDATE STATUS (Approve/Reject) ---
-    // Usage: PUT /api/users/5/status?status=APPROVED
+    // --- ADMIN: UPDATE STATUS ---
     @PutMapping("/{userId}/status")
     public ResponseEntity<?> updateUserStatus(@PathVariable Long userId, @RequestParam String status) {
         try {
             User updatedUser = userService.updateUserStatus(userId, status);
+            updatedUser.setPassword(null); // Hide password
             return ResponseEntity.ok(updatedUser);
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
+    }
+    @GetMapping("/approved-vets")
+    public ResponseEntity<List<User>> getApprovedVets() {
+        return ResponseEntity.ok(userService.getApprovedVets());
     }
 }

@@ -4,6 +4,7 @@ import {
   CheckCircle, ChevronRight, ChevronLeft, UploadCloud, PawPrint, 
   Calendar, Activity, FileText, Camera, AlertCircle, Dog, Cat 
 } from 'lucide-react';
+import toast from 'react-hot-toast'; 
 
 // --- MOCK DATA ---
 const SPECIES_OPTIONS = [
@@ -37,7 +38,8 @@ const AddPet = () => {
     lastCheckup: '',
     medications: '',
     image: null,
-    imagePreview: null
+    imagePreview: null,
+    medicalDocument: null 
   });
 
   const [errors, setErrors] = useState({});
@@ -72,12 +74,77 @@ const AddPet = () => {
     return isValid;
   };
 
-  const handleSave = () => {
+  // --- CONNECTED TO SPRING BOOT BACKEND ---
+  const handleSave = async () => {
     setIsSubmitting(true);
-    setTimeout(() => {
-      setIsSubmitting(false);
-      navigate('/owner/dashboard'); 
-    }, 1500);
+    
+    try {
+        const userStr = localStorage.getItem('user');
+        const token = localStorage.getItem('token');
+        
+        if (!userStr || !token) {
+            toast.error("Authentication error. Please log in again.");
+            navigate('/login');
+            return;
+        }
+
+        const user = JSON.parse(userStr);
+        
+        // 1. Map the React state to match the Spring Boot Entity exactly!
+        const petPayload = {
+            name: formData.name,
+            species: formData.species,
+            breed: formData.breed,
+            gender: formData.gender,
+            weight: formData.weight,
+            dateOfBirth: formData.dob,                  // Mapped from dob
+            vaccinated: formData.vaccinated,
+            neutered: formData.neutered,
+            allergies: formData.allergies,
+            existingConditions: formData.conditions,    // Mapped from conditions
+            primaryVet: formData.primaryVet,
+            lastCheckupDate: formData.lastCheckup,      // Mapped from lastCheckup
+            currentMedications: formData.medications    // Mapped from medications
+        };
+
+        // 2. Construct FormData packet
+        const submitData = new FormData();
+        
+        // Send the perfectly mapped JSON payload
+        submitData.append("pet", JSON.stringify(petPayload));
+        
+        // Add files if they exist
+        if (formData.image) {
+            submitData.append("image", formData.image);
+        }
+        if (formData.medicalDocument) {
+            submitData.append("medicalDocument", formData.medicalDocument);
+        }
+
+        // 3. Send to Backend
+        const response = await fetch(`http://localhost:8082/api/pets/owner/${user.id}`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}` 
+                // Do NOT set Content-Type manually for FormData
+            },
+            body: submitData
+        });
+
+        if (response.ok) {
+            toast.success("Pet added successfully!");
+            navigate('/owner/pets'); 
+        } else {
+            const errorText = await response.text();
+            toast.error("Failed to add pet: " + errorText);
+        }
+
+    } catch (error) {
+        console.error("Submission Error:", error);
+        toast.error("Connection failed. Is the backend running?");
+    } finally {
+        setIsSubmitting(false);
+    }
   };
 
   const renderStep = () => {
@@ -214,16 +281,15 @@ const AddPet = () => {
   );
 };
 
-// --- UPDATED BASIC INFO STEP (With "Specify Species" Logic) ---
+// --- BASIC INFO STEP ---
 const StepBasicInfo = ({ formData, setFormData, errors }) => {
-  // Determine if we are in "Other" mode (species is not dog/cat, or it's empty but user clicked Other)
   const isPredefined = ['dog', 'cat'].includes(formData.species);
   const [isOther, setIsOther] = React.useState(!isPredefined && formData.species !== '');
 
   const handleSpeciesSelect = (id) => {
     if (id === 'other') {
       setIsOther(true);
-      setFormData({ ...formData, species: '' }); // Clear to let them type
+      setFormData({ ...formData, species: '' }); 
     } else {
       setIsOther(false);
       setFormData({ ...formData, species: id });
@@ -247,9 +313,6 @@ const StepBasicInfo = ({ formData, setFormData, errors }) => {
           <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Species</label>
           <div className="grid grid-cols-3 gap-3">
             {SPECIES_OPTIONS.map((option) => {
-              // Highlight logic: 
-              // If option is 'other', highlight if isOther is true
-              // Else highlight if formData.species matches the option id
               const isActive = option.id === 'other' ? isOther : formData.species === option.id;
 
               return (
@@ -270,7 +333,6 @@ const StepBasicInfo = ({ formData, setFormData, errors }) => {
             })}
           </div>
           
-          {/* CONDITIONAL TEXT BOX FOR OTHER */}
           {isOther && (
             <div className="mt-3 animate-in fade-in slide-in-from-top-2 duration-200">
                <InputField 
@@ -278,7 +340,7 @@ const StepBasicInfo = ({ formData, setFormData, errors }) => {
                   value={formData.species} 
                   onChange={(e) => setFormData({...formData, species: e.target.value})} 
                   placeholder="e.g. Rabbit, Hamster, Bird"
-                  error={errors.species} // Show error on this field
+                  error={errors.species}
                   autoFocus
                />
             </div>
@@ -370,11 +432,28 @@ const StepMedicalInfo = ({ formData, setFormData }) => (
       <InputField label="Primary Veterinarian (Optional)" value={formData.primaryVet} onChange={(e) => setFormData({...formData, primaryVet: e.target.value})} placeholder="e.g. Dr. Smith" />
       <InputField label="Last Checkup Date" type="date" value={formData.lastCheckup} onChange={(e) => setFormData({...formData, lastCheckup: e.target.value})} />
       <TextAreaField label="Current Medications" value={formData.medications} onChange={(e) => setFormData({...formData, medications: e.target.value})} placeholder="List medications and dosage..." />
-      <div className="border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-xl p-6 flex flex-col items-center justify-center text-center hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer">
-        <FileText className="w-8 h-8 text-slate-400 mb-2" />
-        <p className="text-sm font-bold text-slate-700 dark:text-slate-300">Upload Medical Records</p>
-        <p className="text-xs text-slate-400">PDF or JPG up to 5MB</p>
+      
+      {/* File Upload Box */}
+      <div className={`relative border-2 border-dashed rounded-xl p-6 flex flex-col items-center justify-center text-center transition-colors cursor-pointer ${formData.medicalDocument ? 'border-teal-500 bg-teal-50 dark:bg-teal-900/20' : 'border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800'}`}>
+        <input 
+          type="file" 
+          accept=".pdf,.jpg,.jpeg,.png"
+          onChange={(e) => {
+            if (e.target.files[0]) {
+               setFormData({ ...formData, medicalDocument: e.target.files[0] });
+            }
+          }}
+          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" 
+        />
+        <FileText className={`w-8 h-8 mb-2 ${formData.medicalDocument ? 'text-teal-600' : 'text-slate-400'}`} />
+        <p className="text-sm font-bold text-slate-700 dark:text-slate-300">
+          {formData.medicalDocument ? 'Document Selected' : 'Upload Medical Records'}
+        </p>
+        <p className={`text-xs mt-1 ${formData.medicalDocument ? 'text-teal-600 font-medium' : 'text-slate-400'}`}>
+          {formData.medicalDocument ? formData.medicalDocument.name : 'PDF or JPG up to 5MB'}
+        </p>
       </div>
+
     </div>
   </div>
 );
