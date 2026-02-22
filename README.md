@@ -1,5 +1,130 @@
-# smart-pet-care
-Development of a Smart Pet Care Application for Health Management, Appointments, and Marketplace Services.
-This application combines health management, appointment booking, and e-commerce services into one ecosystem, making pet care more efficient and accessible.
+# 🐾 Smart Pet Care
 
-The final outcome is a user-friendly mobile/web-based solution that improves pet well-being by offering reminders, easy vet connections, and a convenient product marketplace.
+A full-stack **Smart Pet Care Management System** that helps pet owners manage pet health, appointments with veterinarians, revisit reminders, and a pet marketplace — built using **React + Spring Boot**.
+
+---
+
+## 🚀 Project Overview
+
+Smart Pet Care is a SaaS-style web application designed to simplify pet healthcare management.
+
+Users can:
+
+* Manage pet profiles
+* Book vet appointments
+* Receive revisit reminders
+* Track pet health history
+* Access pet marketplace services
+
+---
+
+## 🛠 Tech Stack
+
+### Frontend
+
+* React (Vite)
+* Tailwind CSS
+* Axios
+
+### Backend
+
+* Spring Boot
+* REST APIs
+* Maven
+
+### Database
+
+* MySQL
+
+---
+
+## ✨ Features
+
+* 👤 User Authentication
+* 🐶 Pet Profile Management
+* 📅 Appointment Booking
+* 🔁 Vet Revisit Reminder System
+* 🛒 Marketplace Module
+* 📊 User Dashboard
+
+---
+
+## 🏗 System Architecture
+
+Frontend (React) → Backend (Spring Boot API) → MySQL Database
+
+---
+
+## ⚙️ Setup Instructions
+
+### 1️⃣ Clone Repository
+
+```
+git clone https://github.com/Aditya4405/smart-pet-care.git
+cd smart-pet-care
+```
+
+---
+
+### 2️⃣ Run Backend
+
+```
+cd backend
+mvn spring-boot:run
+```
+
+Backend runs on:
+
+```
+http://localhost:8082
+```
+
+---
+
+### 3️⃣ Run Frontend
+
+```
+cd frontend
+npm install
+npm run dev
+```
+
+Frontend runs on:
+
+```
+http://localhost:5173
+```
+
+---
+
+## 📂 Project Structure
+
+```
+smart-pet-care
+│
+├── frontend      → React Application
+├── backend       → Spring Boot APIs
+└── documentation → Diagrams & Screenshots
+```
+
+---
+
+## 🔮 Future Enhancements
+
+* AI Pet Health Assistant
+* Online Vet Consultation
+* Vaccination Reminder System
+* Mobile App Version
+
+---
+
+## 👨‍💻 Author
+
+**Aditya Prajapati**
+B.Tech Project – Smart Pet Care System
+
+---
+
+## 📜 License
+
+MIT License
