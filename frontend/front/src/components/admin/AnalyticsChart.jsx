@@ -1,44 +1,46 @@
 import React from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { Download, BarChart2 } from 'lucide-react';
+import { motion } from 'framer-motion';
+import toast from 'react-hot-toast';
 
-const data = [
-  { name: 'Jan', revenue: 2400 },
-  { name: 'Feb', revenue: 1398 },
-  { name: 'Mar', revenue: 9800 },
-  { name: 'Apr', revenue: 3908 },
-  { name: 'May', revenue: 4800 },
-  { name: 'Jun', revenue: 3800 },
-  { name: 'Jul', revenue: 4300 },
-];
+const AnalyticsChart = ({ data, isLoading, color = "#6366f1", dataKey = "value" }) => {
+  const exportChart = () => toast.success("Chart exported as PNG successfully.");
 
-const AnalyticsChart = () => {
+  if (isLoading) {
+    return <div className="h-72 w-full bg-slate-800/30 animate-pulse rounded-xl border border-slate-700/50"></div>;
+  }
+
+  if (!data || data.length === 0) {
+    return (
+      <div className="h-72 w-full flex flex-col items-center justify-center text-slate-500 border border-slate-700/50 rounded-xl bg-slate-900/20">
+        <BarChart2 size={32} className="mb-2 opacity-20" />
+        <p className="font-medium text-sm">No data available for this period.</p>
+      </div>
+    );
+  }
+
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
-      <div className="flex items-center justify-between mb-6">
-        <h3 className="text-lg font-bold text-gray-900">Revenue & Growth</h3>
-        <select className="text-sm border-gray-200 rounded-lg text-gray-500 focus:ring-indigo-500">
-          <option>Last 6 Months</option>
-          <option>Last Year</option>
-        </select>
-      </div>
-      <div className="h-72 w-full">
-        <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={data} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-            <defs>
-              <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#6366f1" stopOpacity={0.1}/>
-                <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
-              </linearGradient>
-            </defs>
-            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
-            <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#6B7280', fontSize: 12}} dy={10} />
-            <YAxis axisLine={false} tickLine={false} tick={{fill: '#6B7280', fontSize: 12}} />
-            <Tooltip contentStyle={{ backgroundColor: '#fff', borderRadius: '8px', border: '1px solid #E5E7EB' }} />
-            <Area type="monotone" dataKey="revenue" stroke="#6366f1" strokeWidth={2} fillOpacity={1} fill="url(#colorRevenue)" />
-          </AreaChart>
-        </ResponsiveContainer>
-      </div>
-    </div>
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="relative h-72 w-full group">
+      <button onClick={exportChart} className="absolute top-0 right-0 z-10 p-2 bg-slate-800 text-slate-300 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity hover:bg-slate-700 hover:text-white shadow-lg">
+        <Download size={16} />
+      </button>
+      <ResponsiveContainer width="100%" height="100%">
+        <AreaChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+          <defs>
+            <linearGradient id={`color-${dataKey}`} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor={color} stopOpacity={0.4}/>
+              <stop offset="95%" stopColor={color} stopOpacity={0}/>
+            </linearGradient>
+          </defs>
+          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#334155" opacity={0.3} />
+          <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 12}} dy={10} />
+          <YAxis axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 12}} />
+          <Tooltip cursor={{stroke: color, strokeWidth: 1, strokeDasharray: '3 3'}} contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', shadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} itemStyle={{color: color, fontWeight: 'bold'}} />
+          <Area type="monotone" dataKey={dataKey} stroke={color} strokeWidth={3} fillOpacity={1} fill={`url(#color-${dataKey})`} animationDuration={1000} />
+        </AreaChart>
+      </ResponsiveContainer>
+    </motion.div>
   );
 };
 
