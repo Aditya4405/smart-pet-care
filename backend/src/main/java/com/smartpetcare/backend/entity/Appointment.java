@@ -2,6 +2,7 @@ package com.smartpetcare.backend.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
+import java.time.LocalDateTime; 
 
 @Entity
 @Table(name = "appointments")
@@ -29,6 +30,8 @@ public class Appointment {
     private String appointmentDate;
     private String appointmentTime;
     private String visitType; 
+    
+    // Will now use: PENDING, ACCEPTED, SCHEDULED, COMPLETED, CANCELLED, REJECTED
     private String status;    
     
     @Column(length = 500)
@@ -36,13 +39,26 @@ public class Appointment {
     
     private Integer amountPaid;
 
-    // --- NEW FIELD FOR THE UPLOADED REPORT ---
+    // --- NEW PAYMENT STATUS FIELD ---
+    // Will use: PENDING, PAID, REFUNDED
+    private String paymentStatus;
+
+    // --- NEW TIMESTAMP FIELD ---
+    @Column(updatable = false)
+    private LocalDateTime createdAt;
+
     private String medicalReportUrl;
     
     @Column(length = 1000)
     private String clinicalNotes;
     private Boolean followUpEnabled;
     private Integer followUpDays;
+
+    // Automatically set the creation time when saved to the database!
+    @PrePersist
+    protected void onCreate() {
+        this.createdAt = LocalDateTime.now();
+    }
 
     // --- MANUAL GETTERS AND SETTERS ---
     public Long getId() { return id; }
@@ -86,4 +102,11 @@ public class Appointment {
 
     public Integer getFollowUpDays() { return followUpDays; }
     public void setFollowUpDays(Integer followUpDays) { this.followUpDays = followUpDays; }
+
+    // --- NEW GETTERS AND SETTERS ---
+    public String getPaymentStatus() { return paymentStatus; }
+    public void setPaymentStatus(String paymentStatus) { this.paymentStatus = paymentStatus; }
+
+    public LocalDateTime getCreatedAt() { return createdAt; }
+    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
 }

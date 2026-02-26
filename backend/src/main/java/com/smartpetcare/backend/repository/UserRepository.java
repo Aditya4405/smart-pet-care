@@ -1,5 +1,6 @@
 package com.smartpetcare.backend.repository;
 
+import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import com.smartpetcare.backend.entity.User;
@@ -10,7 +11,10 @@ public interface UserRepository extends JpaRepository<User, Long> {
     
     Boolean existsByEmail(String email);
 
-    // 🔹 NEW: Custom counting methods for the Admin Dashboard
+    // 🔹 Custom counting methods for the Admin Dashboard
     long countByRole(String role);
     long countByRoleAndStatus(String role, String status);
+
+    // --- NEW: Fetch lists of users by their role ---
+    List<User> findByRole(String role);
 }

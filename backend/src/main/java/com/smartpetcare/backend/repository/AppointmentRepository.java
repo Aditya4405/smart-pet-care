@@ -7,4 +7,6 @@ import java.util.List;
 public interface AppointmentRepository extends JpaRepository<Appointment, Long> {
     List<Appointment> findByOwnerId(Long ownerId);
     List<Appointment> findByVetId(Long vetId);
+ // Fetch upcoming appointments by status and date
+    List<Appointment> findByStatusAndAppointmentDate(String status, String appointmentDate);
 }
