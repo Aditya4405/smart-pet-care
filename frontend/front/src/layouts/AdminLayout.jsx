@@ -29,7 +29,7 @@ const AdminLayout = () => {
 
   const toggleTheme = () => setTheme(theme === 'dark' ? 'light' : 'dark');
 
-  const user = JSON.parse(localStorage.getItem('user')) || { firstName: 'Aditya', lastName: 'Prajapati', role: 'SUPER_ADMIN', email: 'admin@smartpet.com' };
+  const user = JSON.parse(localStorage.getItem('user')) || { firstName: 'Aditya', lastName: 'Admin', role: 'SUPER_ADMIN', email: 'admin@smartpet.com' };
   const role = user.role.toUpperCase();
 
   const menuItems = [
@@ -94,16 +94,16 @@ const AdminLayout = () => {
       </AnimatePresence>
 
       {/* SIDEBAR */}
-      <motion.aside initial={false} animate={{ width: isCollapsed ? '80px' : '280px' }} className="flex flex-col bg-white/60 dark:bg-slate-900/40 backdrop-blur-xl border-r border-slate-200/80 dark:border-slate-800/60 z-20 relative transition-all duration-300">
+      <motion.aside initial={false} animate={{ width: isCollapsed ? '80px' : '280px' }} className="flex flex-col bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 z-20 relative transition-all duration-300">
         <button onClick={() => setIsCollapsed(!isCollapsed)} className="absolute -right-3 top-6 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-300 rounded-full p-1 hover:text-indigo-600 dark:hover:text-white shadow-sm transition-colors z-50">
           {isCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
         </button>
 
-        <div className="h-16 flex items-center px-6 border-b border-slate-200/50 dark:border-slate-800/50 shrink-0 cursor-pointer" onClick={() => navigate('/admin/dashboard')}>
-          <div className="w-8 h-8 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center mr-3 shadow-[0_0_15px_rgba(99,102,241,0.4)]">
+        <div className="h-16 flex items-center px-6 border-b border-slate-200 dark:border-slate-800 shrink-0 cursor-pointer" onClick={() => navigate('/admin/dashboard')}>
+          <div className="w-8 h-8 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center mr-3 shadow-[0_0_15px_rgba(99,102,241,0.4)] shrink-0">
             <Zap className="text-white" size={16} />
           </div>
-          {!isCollapsed && <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="font-bold text-slate-900 dark:text-white whitespace-nowrap tracking-tight">PetCare <span className="text-slate-400 font-normal">OS</span></motion.span>}
+          {!isCollapsed && <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="font-bold text-slate-900 dark:text-white whitespace-nowrap tracking-tight">PetCare <span className="text-slate-400 dark:text-slate-500 font-normal">OS</span></motion.span>}
         </div>
 
         <nav className="flex-1 overflow-y-auto py-6 px-3 space-y-1 custom-scrollbar">
@@ -116,11 +116,12 @@ const AdminLayout = () => {
         </nav>
       </motion.aside>
 
+      {/* 🚨 FIXED: Replaced buggy gradient with rock-solid dark:bg-slate-950 🚨 */}
       {/* MAIN CONTENT AREA */}
-      <div className="flex-1 flex flex-col min-w-0 bg-slate-50 dark:bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] dark:from-slate-900 dark:via-slate-950 dark:to-slate-950 transition-colors duration-300">
+      <div className="flex-1 flex flex-col min-w-0 bg-slate-50 dark:bg-slate-950 transition-colors duration-300">
         
         {/* TOPBAR */}
-        <header className="h-16 border-b border-slate-200/80 dark:border-slate-800/50 bg-white/80 dark:bg-slate-900/30 backdrop-blur-md flex items-center justify-between px-6 sticky top-0 z-10">
+        <header className="h-16 border-b border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md flex items-center justify-between px-6 sticky top-0 z-10">
           <div className="flex items-center gap-4 flex-1">
             <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 rounded-md text-xs font-mono text-emerald-600 dark:text-emerald-400 font-bold tracking-wider">
               <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div> PROD
@@ -138,7 +139,7 @@ const AdminLayout = () => {
             </div>
             <button className="relative text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-white transition-colors">
               <Bell size={18} />
-              <span className="absolute -top-1 -right-1 w-2 h-2 bg-indigo-500 rounded-full ring-2 ring-white dark:ring-slate-950 animate-pulse"></span>
+              <span className="absolute -top-1 -right-1 w-2 h-2 bg-indigo-500 rounded-full ring-2 ring-white dark:ring-slate-900 animate-pulse"></span>
             </button>
             <div className="h-6 w-px bg-slate-200 dark:bg-slate-800"></div>
             
@@ -161,20 +162,20 @@ const AdminLayout = () => {
                   <>
                     <div className="fixed inset-0 z-40" onClick={() => setShowProfileMenu(false)}></div>
                     <motion.div initial={{ opacity: 0, y: 10, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 10, scale: 0.95 }} transition={{ duration: 0.15 }} className="absolute right-0 mt-3 w-56 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl z-50 overflow-hidden">
-                      <div className="p-4 border-b border-slate-100 dark:border-slate-800/80 bg-slate-50 dark:bg-slate-900/50">
+                      <div className="p-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/50">
                         <p className="text-sm font-bold text-slate-900 dark:text-white">{user.firstName} {user.lastName || ''}</p>
                         <p className="text-xs text-slate-500 truncate mt-0.5 font-medium">{user.email}</p>
                       </div>
                       <div className="p-2">
                         <button onClick={toggleTheme} className="w-full flex items-center justify-between px-3 py-2.5 text-sm font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors">
-                          <span className="flex items-center gap-2.5">{theme === 'dark' ? <Sun size={16} className="text-amber-400" /> : <Moon size={16} className="text-indigo-500" />} {theme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>
+                          <span className="flex items-center gap-2.5">{theme === 'dark' ? <Sun size={16} className="text-amber-500" /> : <Moon size={16} className="text-indigo-400" />} {theme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>
                           <div className={`w-8 h-4 rounded-full relative transition-colors ${theme === 'dark' ? 'bg-indigo-500' : 'bg-slate-300'}`}>
                             <div className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-transform ${theme === 'dark' ? 'left-4 translate-x-0.5' : 'left-0.5'}`}></div>
                           </div>
                         </button>
                         <button onClick={() => { navigate('/admin/settings'); setShowProfileMenu(false); }} className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors mt-1"><Settings size={16} className="text-slate-400" /> System Settings</button>
                       </div>
-                      <div className="p-2 border-t border-slate-100 dark:border-slate-800/80">
+                      <div className="p-2 border-t border-slate-100 dark:border-slate-800">
                         <button onClick={handleLogout} className="w-full flex items-center gap-2.5 px-3 py-2 text-sm font-bold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-xl transition-colors"><LogOut size={16} /> Sign Out</button>
                       </div>
                     </motion.div>

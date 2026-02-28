@@ -34,6 +34,7 @@ import HealthRecords from './pages/owner/HealthRecords';
 import Payments from './pages/owner/Payments';
 import Settings from './pages/owner/Settings';
 import Profile from './pages/Profile'; 
+import ContactSupport from './pages/owner/ContactSupport';
 
 // ================= VET PAGES =================
 import VetDashboard from './pages/vet/Dashboard';     
@@ -134,6 +135,7 @@ function App() {
             <Route path="payments" element={<Payments />} />
             <Route path="settings" element={<Settings />} />
             <Route path="profile" element={<Profile />} />
+            <Route path="support" element={<ContactSupport />} />
           </Route>
 
           {/* ================= DEBUGGING 404 CATCH ALL ================= */}
