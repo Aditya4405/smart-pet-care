@@ -1,164 +1,115 @@
-import React from 'react';
-import { 
-  Users, DollarSign, Activity, TrendingUp, ArrowUpRight, 
-  ArrowDownRight, Calendar, AlertCircle 
-} from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { DollarSign, Users, Activity, AlertTriangle, RefreshCw, Server, Database, Cloud } from 'lucide-react';
+import StatsCard from '../../components/admin/StatsCard';
+import toast from 'react-hot-toast';
 
 const AdminDashboard = () => {
-  return (
-    <div className="space-y-8 animate-in fade-in duration-500">
+  const [stats, setStats] = useState({ revenue: 0, users: 0, pending: 0, health: 99.9 });
+  const [chartData, setChartData] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [dateRange, setDateRange] = useState('7d');
+  const [lastRefreshed, setLastRefreshed] = useState(new Date());
+
+  const refreshDashboardData = async (silent = false) => {
+    if (!silent) setIsLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      const headers = { 'Authorization': `Bearer ${token}` };
       
-      {/* 1. Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Executive Overview</h1>
-        <p className="text-slate-500 dark:text-slate-400">Real-time platform performance metrics.</p>
-      </div>
+      const [statsRes, apptRes] = await Promise.all([
+        fetch('http://localhost:8082/api/admin/dashboard/stats', { headers }),
+        fetch('http://localhost:8082/api/admin/appointments', { headers })
+      ]);
 
-      {/* 2. KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <KPICard 
-          title="Total Revenue" 
-          value="$124,500" 
-          change="+12.5%" 
-          trend="up" 
-          icon={DollarSign} 
-          color="emerald" 
-        />
-        <KPICard 
-          title="Active Users" 
-          value="8,249" 
-          change="+3.2%" 
-          trend="up" 
-          icon={Users} 
-          color="blue" 
-        />
-        <KPICard 
-          title="Pending Doctors" 
-          value="14" 
-          change="Requires Action" 
-          trend="neutral" 
-          icon={AlertCircle} 
-          color="amber" 
-        />
-        <KPICard 
-          title="Appointments Today" 
-          value="142" 
-          change="-4.1%" 
-          trend="down" 
-          icon={Calendar} 
-          color="purple" 
-        />
-      </div>
+      if (statsRes.ok && apptRes.ok) {
+        const statsData = await statsRes.json();
+        const appts = await apptRes.json();
 
-      {/* 3. Charts Section (CSS-Only Mock Charts) */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Main Revenue Chart */}
-        <div className="lg:col-span-2 bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
-          <div className="flex justify-between items-center mb-6">
-            <div>
-              <h3 className="font-bold text-lg text-slate-900 dark:text-white">Revenue Growth</h3>
-              <p className="text-sm text-slate-500">Monthly Recurring Revenue (MRR)</p>
-            </div>
-            <select className="bg-slate-50 dark:bg-slate-700 border-none text-sm rounded-lg p-2 font-bold outline-none">
-              <option>Last 6 Months</option>
-              <option>Last Year</option>
-            </select>
-          </div>
-          
-          {/* Visual Bar Chart */}
-          <div className="h-64 flex items-end justify-between gap-2">
-            {[35, 45, 30, 60, 75, 50, 65, 80, 70, 85, 90, 100].map((h, i) => (
-              <div key={i} className="flex-1 flex flex-col justify-end group">
-                <div 
-                  style={{ height: `${h}%` }} 
-                  className="bg-indigo-500/20 group-hover:bg-indigo-500 dark:bg-indigo-500/40 dark:group-hover:bg-indigo-400 rounded-t-sm transition-all duration-300 relative"
-                >
-                  <div className="opacity-0 group-hover:opacity-100 absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-xs py-1 px-2 rounded font-bold transition-opacity">
-                    ${h}k
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-          <div className="flex justify-between mt-4 text-xs font-bold text-slate-400 uppercase">
-            <span>Jan</span><span>Feb</span><span>Mar</span><span>Apr</span><span>May</span><span>Jun</span>
-            <span>Jul</span><span>Aug</span><span>Sep</span><span>Oct</span><span>Nov</span><span>Dec</span>
-          </div>
-        </div>
+        setStats({
+          revenue: statsData.totalRevenue || 0,
+          users: (statsData.totalUsers || 0) + (statsData.totalDoctors || 0),
+          pending: statsData.pendingApprovals || 0,
+          health: 99.9
+        });
 
-        {/* User Stats Card */}
-        <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
-          <h3 className="font-bold text-lg text-slate-900 dark:text-white mb-6">User Demographics</h3>
-          <div className="space-y-6">
-            <StatRow label="Pet Owners" value="85%" color="bg-blue-500" count="7,012" />
-            <StatRow label="Veterinarians" value="12%" color="bg-emerald-500" count="984" />
-            <StatRow label="Admins" value="3%" color="bg-purple-500" count="253" />
-          </div>
-
-          <div className="mt-8 pt-6 border-t border-slate-100 dark:border-slate-700">
-             <h4 className="font-bold text-sm text-slate-900 dark:text-white mb-4">Recent Activity</h4>
-             <div className="space-y-4">
-               <ActivityItem text="New doctor registration: Dr. Smith" time="2m ago" />
-               <ActivityItem text="Marketplace order #4920 shipped" time="15m ago" />
-               <ActivityItem text="User report filed against ID #992" time="1h ago" />
-             </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// --- Sub-Components for Clean Code ---
-
-const KPICard = ({ title, value, change, trend, icon: Icon, color }) => {
-  const colors = {
-    emerald: "text-emerald-600 bg-emerald-50 dark:bg-emerald-900/20 dark:text-emerald-400",
-    blue: "text-blue-600 bg-blue-50 dark:bg-blue-900/20 dark:text-blue-400",
-    amber: "text-amber-600 bg-amber-50 dark:bg-amber-900/20 dark:text-amber-400",
-    purple: "text-purple-600 bg-purple-50 dark:bg-purple-900/20 dark:text-purple-400",
+        const monthly = {};
+        appts.forEach(a => {
+           if (a.paymentStatus !== 'PAID') return;
+           const monthName = new Date(a.appointmentDate).toLocaleString('default', { month: 'short' });
+           if (!monthly[monthName]) monthly[monthName] = { name: monthName, revenue: 0 };
+           monthly[monthName].revenue += (a.amountPaid || 0);
+        });
+        setChartData(Object.values(monthly).length > 0 ? Object.values(monthly) : [{name: 'Current', revenue: 0}]);
+        setLastRefreshed(new Date());
+      }
+    } catch (e) { 
+      toast.error("Telemetry sync failed."); 
+    } finally { 
+      setIsLoading(false); 
+    }
   };
 
+  useEffect(() => {
+    refreshDashboardData();
+    const interval = setInterval(() => refreshDashboardData(true), 60000);
+    return () => clearInterval(interval);
+  }, [dateRange]);
+
   return (
-    <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md transition-shadow">
-      <div className="flex justify-between items-start">
-        <div className={`p-3 rounded-xl ${colors[color]}`}>
-          <Icon size={22} />
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-8 max-w-[1600px] mx-auto pb-12">
+      <div className="flex flex-col md:flex-row justify-between md:items-end gap-4">
+        <div>
+          <h1 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">Executive Dashboard</h1>
+          <p className="text-slate-500 dark:text-slate-400 mt-1 flex items-center gap-2 font-mono text-xs">
+            LIVE TELEMETRY <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span> Last synced: {lastRefreshed.toLocaleTimeString()}
+          </p>
         </div>
-        <div className={`flex items-center gap-1 text-xs font-bold px-2 py-1 rounded-full ${trend === 'up' ? 'bg-green-100 text-green-700' : trend === 'down' ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-600'}`}>
-          {trend === 'up' && <ArrowUpRight size={12} />}
-          {trend === 'down' && <ArrowDownRight size={12} />}
-          {change}
+        <div className="flex gap-3">
+          <select value={dateRange} onChange={(e) => setDateRange(e.target.value)} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-lg px-4 py-2 outline-none focus:border-indigo-500 shadow-sm cursor-pointer">
+            <option value="24h">Last 24 Hours</option><option value="7d">Last 7 Days</option><option value="30d">Last 30 Days</option>
+          </select>
+          <button onClick={() => refreshDashboardData(false)} className="p-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-lg transition-colors shadow-sm"><RefreshCw size={20} className={isLoading ? "animate-spin" : ""} /></button>
         </div>
       </div>
-      <div className="mt-4">
-        <h3 className="text-2xl font-bold text-slate-900 dark:text-white">{value}</h3>
-        <p className="text-sm font-medium text-slate-500">{title}</p>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <StatsCard title="Gross Revenue" value={stats.revenue} prefix="₹" trendDirection="up" percentageChange="14.2" icon={DollarSign} color="indigo" isLoading={isLoading} />
+        <StatsCard title="Active Users" value={stats.users} trendDirection="up" percentageChange="3.1" icon={Users} color="emerald" isLoading={isLoading} />
+        <StatsCard title="Pending Approvals" value={stats.pending} trendDirection="down" percentageChange={stats.pending > 0 ? "10" : "0"} icon={AlertTriangle} color="amber" isLoading={isLoading} />
+        <StatsCard title="System Health" value={stats.health} suffix="%" trendDirection="up" percentageChange="0.1" icon={Activity} color="blue" isLoading={isLoading} />
       </div>
-    </div>
+
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+        <div className="xl:col-span-2 bg-white dark:bg-slate-900/50 backdrop-blur-md border border-slate-200 dark:border-slate-800/60 rounded-2xl p-6 shadow-sm dark:shadow-xl">
+          <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-6 flex items-center gap-2"><Activity size={18} className="text-indigo-500 dark:text-indigo-400"/> Revenue Velocity</h3>
+          {isLoading ? <div className="h-[300px] bg-slate-100 dark:bg-slate-800/30 animate-pulse rounded-xl"></div> : (
+            <div className="h-[300px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={chartData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
+                  <defs><linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#6366f1" stopOpacity={0.4}/><stop offset="95%" stopColor="#6366f1" stopOpacity={0}/></linearGradient></defs>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#94a3b8" opacity={0.2} />
+                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12}} dy={10} />
+                  <YAxis axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12}} />
+                  <Tooltip cursor={{stroke: '#6366f1', strokeWidth: 1, strokeDasharray: '3 3'}} contentStyle={{ backgroundColor: 'var(--tw-prose-body)', borderColor: '#e2e8f0', borderRadius: '12px', color: '#0f172a' }} itemStyle={{color: '#6366f1', fontWeight: 'bold'}} />
+                  <Area type="monotone" dataKey="revenue" stroke="#6366f1" strokeWidth={3} fillOpacity={1} fill="url(#colorRev)" animationDuration={1000} />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </div>
+
+        <div className="bg-white dark:bg-slate-900/50 backdrop-blur-md border border-slate-200 dark:border-slate-800/60 rounded-2xl p-6 shadow-sm dark:shadow-xl flex flex-col">
+          <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-6 flex items-center gap-2"><Server size={18} className="text-emerald-500 dark:text-emerald-400"/> Infrastructure Status</h3>
+          <div className="flex-1 space-y-4">
+            <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-800/30 border border-slate-100 dark:border-slate-700/50"><div className="flex items-center gap-3"><Database className="text-slate-400" size={16}/><div><p className="text-sm font-bold text-slate-900 dark:text-white">Database</p><p className="text-xs text-slate-500 font-mono">14ms latency</p></div></div><div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div></div>
+            <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-800/30 border border-slate-100 dark:border-slate-700/50"><div className="flex items-center gap-3"><Users className="text-slate-400" size={16}/><div><p className="text-sm font-bold text-slate-900 dark:text-white">Auth API</p><p className="text-xs text-slate-500 font-mono">42ms latency</p></div></div><div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div></div>
+            <div className="flex items-center justify-between p-3 rounded-xl bg-amber-50 dark:bg-amber-500/5 border border-amber-200 dark:border-amber-500/20"><div className="flex items-center gap-3"><Cloud className="text-amber-500 dark:text-amber-400" size={16}/><div><p className="text-sm font-bold text-amber-600 dark:text-amber-400">Payment Gateway</p><p className="text-xs text-amber-500/70 font-mono">405ms (Degraded)</p></div></div><div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></div></div>
+          </div>
+        </div>
+      </div>
+    </motion.div>
   );
 };
-
-const StatRow = ({ label, value, color, count }) => (
-  <div>
-    <div className="flex justify-between text-sm font-bold mb-2">
-      <span className="text-slate-700 dark:text-slate-300">{label}</span>
-      <span className="text-slate-900 dark:text-white">{count}</span>
-    </div>
-    <div className="w-full h-2 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
-      <div style={{ width: value }} className={`h-full ${color} rounded-full`} />
-    </div>
-  </div>
-);
-
-const ActivityItem = ({ text, time }) => (
-  <div className="flex items-start gap-3">
-    <div className="w-2 h-2 mt-1.5 rounded-full bg-indigo-500 shrink-0" />
-    <div>
-      <p className="text-sm text-slate-700 dark:text-slate-300 font-medium leading-tight">{text}</p>
-      <p className="text-xs text-slate-500 mt-1">{time}</p>
-    </div>
-  </div>
-);
-
 export default AdminDashboard;
