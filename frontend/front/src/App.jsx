@@ -34,7 +34,6 @@ import HealthRecords from './pages/owner/HealthRecords';
 import Payments from './pages/owner/Payments';
 import Settings from './pages/owner/Settings';
 import Profile from './pages/Profile'; 
-import ContactSupport from './pages/owner/ContactSupport';
 
 // ================= VET PAGES =================
 import VetDashboard from './pages/vet/Dashboard';     
@@ -46,6 +45,7 @@ import VetSettings from './pages/vet/Settings';
 // ================= SHARED PAGES =================
 import Marketplace from './pages/Marketplace'; 
 import VideoRoom from './pages/VideoRoom'; 
+import ContactSupport from './pages/shared/ContactSupport';
 
 // 🔒 ROLE GUARD
 const RoleRoute = ({ children, allowedRoles }) => {
@@ -118,6 +118,7 @@ function App() {
             <Route path="analytics" element={<VetAnalytics />} />
             <Route path="profile" element={<Profile />} />
             <Route path="settings" element={<VetSettings />} />
+            <Route path="support" element={<ContactSupport />} />
           </Route>
 
           {/* ================= OWNER ROUTES ================= */}
