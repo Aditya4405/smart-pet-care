@@ -127,6 +127,7 @@ const OwnerTopNav = () => {
     { name: 'My Pets', path: '/owner/pets' },
     { name: 'Marketplace', path: '/owner/marketplace' },
     { name: 'Appointments', path: '/owner/appointments' },
+    { name: 'Support', path: '/owner/support' }
   ];
 
   return (
