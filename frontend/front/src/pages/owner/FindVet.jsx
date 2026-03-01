@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Search, MapPin, Star, Calendar, Stethoscope, 
-  Clock, ShieldCheck, Filter 
+  Clock, ShieldCheck, Filter, Flag, X, AlertTriangle 
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
@@ -13,6 +13,15 @@ const FindVet = () => {
   
   const [doctors, setDoctors] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  // --- MODERATION MODAL STATE ---
+  const [reportModalOpen, setReportModalOpen] = useState(false);
+  const [doctorToReport, setDoctorToReport] = useState(null);
+  const [isReporting, setIsReporting] = useState(false);
+  const [reportData, setReportData] = useState({
+      reason: '',
+      severity: 'MEDIUM'
+  });
 
   const categories = ['All', 'General', 'Surgery', 'Dermatology', 'Dentistry'];
 
@@ -31,7 +40,6 @@ const FindVet = () => {
       if (response.ok) {
         const data = await response.json();
         
-        // Map backend User data to match the UI Doctor Card format
         const formattedDoctors = data.map(vet => ({
             id: vet.id,
             name: `Dr. ${vet.firstName} ${vet.lastName}`,
@@ -40,11 +48,7 @@ const FindVet = () => {
             exp: vet.yearsExperience ? `${vet.yearsExperience} Years` : 'New',
             rating: 4.8, 
             reviews: Math.floor(Math.random() * 50) + 10, 
-            
-            // --- NOW USING REAL LOCATION DATA ---
             location: vet.location || "Location not provided", 
-            
-            // Generates a nice avatar using their initials
             image: `https://ui-avatars.com/api/?name=${vet.firstName}+${vet.lastName}&background=10b981&color=fff&size=256`,
             available: true,
             originalData: vet
@@ -61,7 +65,50 @@ const FindVet = () => {
     }
   };
 
-  // Filter Logic: Now includes searching by location!
+  // --- SUBMIT MODERATION REPORT ---
+  const handleReportSubmit = async (e) => {
+      e.preventDefault();
+      if (!reportData.reason.trim()) {
+          toast.error("Please provide a reason for the report.");
+          return;
+      }
+
+      setIsReporting(true);
+      try {
+          const payload = {
+              target: doctorToReport.name,
+              reason: reportData.reason,
+              severity: reportData.severity
+          };
+
+          const response = await fetch('http://localhost:8082/api/actions/moderation/report', {
+              method: 'POST',
+              headers: { 
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${localStorage.getItem('token')}`
+              },
+              body: JSON.stringify(payload)
+          });
+
+          if (response.ok) {
+              toast.success("Report submitted securely to Admin.");
+              setReportModalOpen(false);
+              setReportData({ reason: '', severity: 'MEDIUM' }); // Reset form
+          } else {
+              toast.error("Failed to submit report.");
+          }
+      } catch (error) {
+          toast.error("Network error. Please try again.");
+      } finally {
+          setIsReporting(false);
+      }
+  };
+
+  const openReportModal = (doc) => {
+      setDoctorToReport(doc);
+      setReportModalOpen(true);
+  };
+
   const filteredDoctors = doctors.filter(doc => 
     (selectedCategory === 'All' || doc.specialty.toLowerCase() === selectedCategory.toLowerCase()) &&
     (doc.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -123,8 +170,17 @@ const FindVet = () => {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
           {filteredDoctors.map((doc) => (
-              <div key={doc.id} className="group bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-5 hover:shadow-xl hover:border-emerald-500/30 transition-all duration-300 flex flex-col">
+              <div key={doc.id} className="group relative bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-5 hover:shadow-xl hover:border-emerald-500/30 transition-all duration-300 flex flex-col">
                   
+                  {/* --- REPORT FLAG BUTTON --- */}
+                  <button 
+                      onClick={() => openReportModal(doc)}
+                      className="absolute top-4 right-4 p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/20 rounded-full transition-all opacity-0 group-hover:opacity-100"
+                      title="Report Profile"
+                  >
+                      <Flag className="w-4 h-4" />
+                  </button>
+
                   {/* Top Section: Image & Info */}
                   <div className="flex gap-4">
                       <div className="relative w-20 h-20 shrink-0">
@@ -133,7 +189,7 @@ const FindVet = () => {
                               <ShieldCheck className="w-5 h-5 text-blue-500 fill-blue-50" />
                           </div>
                       </div>
-                      <div>
+                      <div className="pr-6">
                           <h3 className="font-bold text-lg text-slate-900 dark:text-white leading-tight">{doc.name}</h3>
                           <p className="text-sm text-emerald-600 font-bold mb-1">{doc.specialty} Specialist</p>
                           <p className="text-xs text-slate-500 flex items-center gap-1">
@@ -153,7 +209,7 @@ const FindVet = () => {
                           <p className="text-xs text-slate-400 font-bold uppercase">Experience</p>
                           <p className="text-sm font-bold text-slate-900 dark:text-white">{doc.exp}</p>
                       </div>
-                      <div className="bg-slate-50 dark:bg-slate-700/50 p-3 rounded-xl">
+                      <div className="bg-slate-50 dark:bg-slate-700/50 p-3 rounded-xl overflow-hidden">
                           <p className="text-xs text-slate-400 font-bold uppercase">Location</p>
                           <p className="text-sm font-bold text-slate-900 dark:text-white truncate" title={doc.location}>{doc.location}</p>
                       </div>
@@ -195,6 +251,62 @@ const FindVet = () => {
         </div>
       )}
 
+      {/* --- MODERATION REPORT MODAL --- */}
+      {reportModalOpen && doctorToReport && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+              <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-3xl shadow-2xl p-6 md:p-8 relative animate-in zoom-in-95 duration-200">
+                  <button onClick={() => setReportModalOpen(false)} className="absolute top-4 right-4 p-2 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors">
+                      <X className="w-5 h-5" />
+                  </button>
+                  
+                  <div className="flex items-center gap-3 mb-6">
+                      <div className="w-12 h-12 bg-red-100 dark:bg-red-500/20 text-red-600 dark:text-red-500 rounded-full flex items-center justify-center">
+                          <AlertTriangle className="w-6 h-6" />
+                      </div>
+                      <div>
+                          <h2 className="text-xl font-bold text-slate-900 dark:text-white">Report Profile</h2>
+                          <p className="text-sm text-slate-500">Flagging {doctorToReport.name}</p>
+                      </div>
+                  </div>
+
+                  <form onSubmit={handleReportSubmit} className="space-y-5">
+                      <div>
+                          <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Severity Level</label>
+                          <select 
+                              value={reportData.severity}
+                              onChange={(e) => setReportData({...reportData, severity: e.target.value})}
+                              className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white rounded-xl px-4 py-3 outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500 cursor-pointer"
+                          >
+                              <option value="LOW">Low (Minor policy violation)</option>
+                              <option value="MEDIUM">Medium (Suspicious behavior/Spam)</option>
+                              <option value="HIGH">High (Scam, Harmful, or Illegal)</option>
+                          </select>
+                      </div>
+
+                      <div>
+                          <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Reason for Report</label>
+                          <textarea 
+                              required
+                              rows="4"
+                              placeholder="Please describe why you are reporting this profile. Our Trust & Safety team will review this."
+                              value={reportData.reason}
+                              onChange={(e) => setReportData({...reportData, reason: e.target.value})}
+                              className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white rounded-xl px-4 py-3 outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500 resize-none"
+                          />
+                      </div>
+
+                      <div className="flex gap-3 pt-4">
+                          <button type="button" onClick={() => setReportModalOpen(false)} className="flex-1 py-3 text-slate-600 dark:text-slate-300 font-bold hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors">
+                              Cancel
+                          </button>
+                          <button type="submit" disabled={isReporting} className="flex-1 py-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl shadow-lg shadow-red-500/30 transition-all flex justify-center items-center gap-2 disabled:opacity-70">
+                              {isReporting ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> : "Submit Report"}
+                          </button>
+                      </div>
+                  </form>
+              </div>
+          </div>
+      )}
     </div>
   );
 };
