@@ -20,6 +20,9 @@ import com.smartpetcare.backend.repository.PetRepository;
 import com.smartpetcare.backend.repository.UserRepository;
 import com.smartpetcare.backend.service.EmailService;
 import com.smartpetcare.backend.service.FileService;
+import com.smartpetcare.backend.service.AuditLogService; // <-- ADDED IMPORT
+
+import jakarta.servlet.http.HttpServletRequest; // <-- ADDED IMPORT
 
 @RestController
 @RequestMapping("/api/appointments")
@@ -28,20 +31,28 @@ public class AppointmentController {
 
     @Autowired
     private AppointmentRepository appointmentRepository;
+    
     @Autowired
     private UserRepository userRepository;
+    
     @Autowired
     private PetRepository petRepository;
+    
     @Autowired
     private FileService fileService;
+    
     @Autowired
     private EmailService emailService;
+
+    @Autowired
+    private AuditLogService auditLogService; // <-- ADDED AUDIT SERVICE
 
     // --- 1. BOOK APPOINTMENT (Starts as PENDING) ---
     @PostMapping(value = "/book", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<?> bookAppointment(
             @RequestPart("appointmentData") String appointmentJson,
-            @RequestPart(value = "medicalReport", required = false) MultipartFile medicalReport
+            @RequestPart(value = "medicalReport", required = false) MultipartFile medicalReport,
+            HttpServletRequest request // <-- Added to get IP Address
     ) {
         try {
             ObjectMapper mapper = new ObjectMapper();
@@ -75,6 +86,16 @@ public class AppointmentController {
             }
 
             Appointment saved = appointmentRepository.save(appointment);
+
+            // --- TRIGGER AUTOMATIC AUDIT LOG ---
+            String ipAddress = request.getRemoteAddr();
+            auditLogService.logAction(
+                "New Booking Request (Pending Vet Approval): APT-" + saved.getId(), 
+                owner.getFirstName() + " (Owner)", 
+                ipAddress, 
+                "INFO"
+            );
+
             return ResponseEntity.ok(saved);
 
         } catch (Exception e) {
@@ -84,7 +105,7 @@ public class AppointmentController {
 
     // --- 2. VET ACCEPTS OR REJECTS ---
     @PutMapping("/{id}/vet-action")
-    public ResponseEntity<?> vetAction(@PathVariable Long id, @RequestBody Map<String, String> payload) {
+    public ResponseEntity<?> vetAction(@PathVariable Long id, @RequestBody Map<String, String> payload, HttpServletRequest request) {
         try {
             Appointment appointment = appointmentRepository.findById(id)
                     .orElseThrow(() -> new RuntimeException("Appointment not found"));
@@ -114,7 +135,17 @@ public class AppointmentController {
                 appointment.setPaymentStatus("REFUNDED");
             }
             
-            return ResponseEntity.ok(appointmentRepository.save(appointment));
+            Appointment saved = appointmentRepository.save(appointment);
+
+            // --- TRIGGER AUTOMATIC AUDIT LOG ---
+            auditLogService.logAction(
+                "Vet " + action + "ED Appointment APT-" + saved.getId(), 
+                "Dr. " + saved.getVet().getLastName(), 
+                request.getRemoteAddr(), 
+                "INFO"
+            );
+
+            return ResponseEntity.ok(saved);
         } catch (Exception e) {
             return ResponseEntity.badRequest().body("Failed to update status: " + e.getMessage());
         }
@@ -122,7 +153,7 @@ public class AppointmentController {
 
     // --- 3. OWNER PAYS (Changes to SCHEDULED and Sends Confirmation Email) ---
     @PutMapping("/{id}/pay")
-    public ResponseEntity<?> payAppointment(@PathVariable Long id) {
+    public ResponseEntity<?> payAppointment(@PathVariable Long id, HttpServletRequest request) {
         try {
             Appointment appointment = appointmentRepository.findById(id)
                     .orElseThrow(() -> new RuntimeException("Appointment not found"));
@@ -141,6 +172,14 @@ public class AppointmentController {
                 System.out.println("Email sending failed: " + e.getMessage());
             }
 
+            // --- TRIGGER AUTOMATIC AUDIT LOG ---
+            auditLogService.logAction(
+                "Payment Processed: ₹" + saved.getAmountPaid() + " for APT-" + saved.getId(), 
+                saved.getOwner().getFirstName() + " (Owner)", 
+                request.getRemoteAddr(), 
+                "WARNING" // Highlighting financial transactions as warnings in the log
+            );
+
             return ResponseEntity.ok(saved);
         } catch (Exception e) {
             return ResponseEntity.badRequest().body("Payment failed: " + e.getMessage());
@@ -149,12 +188,13 @@ public class AppointmentController {
 
     // --- 4. CANCEL APPOINTMENT (With 24-Hour Check) ---
     @PutMapping("/{id}/cancel")
-    public ResponseEntity<?> cancelAppointment(@PathVariable Long id, @RequestBody Map<String, String> payload) {
+    public ResponseEntity<?> cancelAppointment(@PathVariable Long id, @RequestBody Map<String, String> payload, HttpServletRequest request) {
         try {
             Appointment appointment = appointmentRepository.findById(id)
                     .orElseThrow(() -> new RuntimeException("Appointment not found"));
             
             String role = payload.get("role"); 
+            String actorName = role.equalsIgnoreCase("OWNER") ? appointment.getOwner().getFirstName() : "Dr. " + appointment.getVet().getLastName();
             
             if ("OWNER".equalsIgnoreCase(role)) {
                 LocalDate apptDate = LocalDate.parse(appointment.getAppointmentDate(), DateTimeFormatter.ofPattern("yyyy-MM-dd"));
@@ -176,7 +216,17 @@ public class AppointmentController {
                 }
             }
             
-            return ResponseEntity.ok(appointmentRepository.save(appointment));
+            Appointment saved = appointmentRepository.save(appointment);
+
+            // --- TRIGGER AUTOMATIC AUDIT LOG ---
+            auditLogService.logAction(
+                "Appointment APT-" + saved.getId() + " Cancelled", 
+                actorName, 
+                request.getRemoteAddr(), 
+                "CRITICAL" // Cancellations marked as critical
+            );
+
+            return ResponseEntity.ok(saved);
         } catch (Exception e) {
             return ResponseEntity.badRequest().body("Cancellation failed: " + e.getMessage());
         }
