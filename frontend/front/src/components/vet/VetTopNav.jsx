@@ -113,6 +113,7 @@ const VetTopNav = () => {
     { name: 'Patients', path: '/vet/patients' },
     { name: 'Marketplace', path: '/vet/marketplace' },
     { name: 'Analytics', path: '/vet/analytics' },
+    { name: 'Support', path: '/vet/support' },
   ];
 
   return (
