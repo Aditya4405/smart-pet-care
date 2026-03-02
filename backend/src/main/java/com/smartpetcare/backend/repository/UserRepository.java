@@ -1,20 +1,25 @@
 package com.smartpetcare.backend.repository;
 
-import java.util.List;
-import java.util.Optional;
-import org.springframework.data.jpa.repository.JpaRepository;
 import com.smartpetcare.backend.entity.User;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
 
+import java.util.List;
+import java.util.Optional; 
+
+@Repository
 public interface UserRepository extends JpaRepository<User, Long> {
-
-    Optional<User> findByEmail(String email);
     
-    Boolean existsByEmail(String email);
+    // --- Added for DataSeeder & Security Auth ---
+    boolean existsByEmail(String email);
+    
+    Optional<User> findByEmail(String email); 
 
-    // 🔹 Custom counting methods for the Admin Dashboard
+    // --- Added for Admin Dashboard Analytics ---
+    List<User> findByRole(String role);
     long countByRole(String role);
     long countByRoleAndStatus(String role, String status);
 
-    // --- NEW: Fetch lists of users by their role ---
-    List<User> findByRole(String role);
+    // --- ADDED FOR THE GHOSTING PHASE (Moderation Lockdown) ---
+    List<User> findByRoleAndStatus(String role, String status);
 }
