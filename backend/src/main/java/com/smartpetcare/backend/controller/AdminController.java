@@ -13,6 +13,7 @@ import com.smartpetcare.backend.repository.SupportTicketRepository;
 import com.smartpetcare.backend.service.AdminService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -20,7 +21,8 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/admin")
-@CrossOrigin(origins = "http://localhost:5173") // Crucial: Allows your React frontend to talk to this backend
+@CrossOrigin(origins = "http://localhost:5173")
+@PreAuthorize("hasAnyAuthority('ADMIN', 'ROLE_ADMIN')") // <-- THIS FIXES THE 403 ERROR!
 public class AdminController {
 
     @Autowired
@@ -38,20 +40,16 @@ public class AdminController {
     @Autowired
     private AuditLogRepository auditLogRepository;
 
-    // --- DASHBOARD ---
     @GetMapping("/dashboard/stats")
     public ResponseEntity<DashboardStatsDTO> getDashboardStats() {
         return ResponseEntity.ok(adminService.getDashboardStats());
     }
 
-    // --- APPOINTMENTS & FINANCIALS ---
     @GetMapping("/appointments")
     public ResponseEntity<List<Appointment>> getAllAppointments() {
-        // Fetches all appointments for the Admin Ledger and Booking views
         return ResponseEntity.ok(appointmentRepository.findAll());
     }
 
-    // --- USER MANAGEMENT ---
     @GetMapping("/users")
     public ResponseEntity<List<User>> getAllUsers() {
         return ResponseEntity.ok(adminService.getAllUsers());
@@ -62,7 +60,6 @@ public class AdminController {
         return ResponseEntity.ok(adminService.getAllVets());
     }
 
-    // --- MODERATION ACTIONS (Users & Vets) ---
     @PutMapping("/users/{id}/status")
     public ResponseEntity<?> updateUserStatus(@PathVariable Long id, @RequestBody Map<String, String> payload) {
         String action = payload.get("action");
@@ -70,7 +67,6 @@ public class AdminController {
         return ResponseEntity.ok().body(Map.of("message", "Status updated successfully", "userId", id));
     }
 
-    // --- SUPPORT ENDPOINTS ---
     @GetMapping("/support/tickets")
     public ResponseEntity<List<SupportTicket>> getAllTickets() {
         return ResponseEntity.ok(supportTicketRepository.findAll());
@@ -87,7 +83,6 @@ public class AdminController {
         return ResponseEntity.ok().body(Map.of("message", "Ticket Resolved"));
     }
 
-    // --- MODERATION REPORTS ENDPOINTS ---
     @GetMapping("/moderation/reports")
     public ResponseEntity<List<Report>> getAllReports() {
         return ResponseEntity.ok(reportRepository.findAll());
@@ -99,7 +94,6 @@ public class AdminController {
         return ResponseEntity.ok().body(Map.of("message", "Report Dismissed"));
     }
     
- // --- AUDIT LOGS ENDPOINT ---
     @GetMapping("/audit-logs")
     public ResponseEntity<List<AuditLog>> getAuditLogs() {
         return ResponseEntity.ok(auditLogRepository.findAll());
