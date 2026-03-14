@@ -20,9 +20,10 @@ import com.smartpetcare.backend.repository.PetRepository;
 import com.smartpetcare.backend.repository.UserRepository;
 import com.smartpetcare.backend.service.EmailService;
 import com.smartpetcare.backend.service.FileService;
-import com.smartpetcare.backend.service.AuditLogService; // <-- ADDED IMPORT
+import com.smartpetcare.backend.service.AuditLogService;
+import com.smartpetcare.backend.service.GoogleCalendarService; 
 
-import jakarta.servlet.http.HttpServletRequest; // <-- ADDED IMPORT
+import jakarta.servlet.http.HttpServletRequest;
 
 @RestController
 @RequestMapping("/api/appointments")
@@ -45,14 +46,18 @@ public class AppointmentController {
     private EmailService emailService;
 
     @Autowired
-    private AuditLogService auditLogService; // <-- ADDED AUDIT SERVICE
+    private AuditLogService auditLogService; 
+
+    // --- INJECT GOOGLE CALENDAR SERVICE ---
+    @Autowired
+    private GoogleCalendarService googleCalendarService;
 
     // --- 1. BOOK APPOINTMENT (Starts as PENDING) ---
     @PostMapping(value = "/book", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<?> bookAppointment(
             @RequestPart("appointmentData") String appointmentJson,
             @RequestPart(value = "medicalReport", required = false) MultipartFile medicalReport,
-            HttpServletRequest request // <-- Added to get IP Address
+            HttpServletRequest request 
     ) {
         try {
             ObjectMapper mapper = new ObjectMapper();
@@ -83,6 +88,29 @@ public class AppointmentController {
             if (medicalReport != null && !medicalReport.isEmpty()) {
                 String fileName = fileService.saveFile(medicalReport);
                 appointment.setMedicalReportUrl(fileName);
+            }
+
+            // --- GENERATE GOOGLE MEET LINK (Only for Video Consultations) ---
+            if ("VIDEO".equalsIgnoreCase(appointment.getVisitType())) {
+                try {
+                    String meetLink = googleCalendarService.createMeetLink(
+                        pet.getName(), 
+                        vet.getLastName(), 
+                        appointment.getAppointmentDate(), 
+                        appointment.getAppointmentTime()
+                    );
+                    
+                    // Fallback just in case the API failed
+                    if (meetLink == null || meetLink.isEmpty()) {
+                        System.err.println("WARNING: Google API returned a null link. Using a fallback link.");
+                        meetLink = "https://meet.google.com/new"; // Fallback link
+                    }
+                    
+                    appointment.setMeetLink(meetLink);
+                } catch (Exception e) {
+                    System.err.println("CRITICAL ERROR generating Meet link: " + e.getMessage());
+                    appointment.setMeetLink("https://meet.google.com/new"); // Fallback link
+                }
             }
 
             Appointment saved = appointmentRepository.save(appointment);
@@ -177,7 +205,7 @@ public class AppointmentController {
                 "Payment Processed: ₹" + saved.getAmountPaid() + " for APT-" + saved.getId(), 
                 saved.getOwner().getFirstName() + " (Owner)", 
                 request.getRemoteAddr(), 
-                "WARNING" // Highlighting financial transactions as warnings in the log
+                "WARNING" 
             );
 
             return ResponseEntity.ok(saved);
@@ -223,7 +251,7 @@ public class AppointmentController {
                 "Appointment APT-" + saved.getId() + " Cancelled", 
                 actorName, 
                 request.getRemoteAddr(), 
-                "CRITICAL" // Cancellations marked as critical
+                "CRITICAL" 
             );
 
             return ResponseEntity.ok(saved);
