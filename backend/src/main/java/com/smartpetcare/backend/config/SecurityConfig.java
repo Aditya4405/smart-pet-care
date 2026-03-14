@@ -2,6 +2,7 @@ package com.smartpetcare.backend.config;
 
 import com.smartpetcare.backend.security.JwtFilter;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -25,25 +26,32 @@ import static org.springframework.security.config.Customizer.withDefaults;
 public class SecurityConfig {
 
     @Autowired
-    private JwtFilter jwtFilter; // Injecting our new JWT Filter
+    private JwtFilter jwtFilter;
+
+    @Value("${FRONTEND_URL}")
+    private String frontendUrl;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-            .csrf(csrf -> csrf.disable()) 
-            .cors(withDefaults()) 
-            // 1. Make session stateless because we are using JWT tokens now
+            .csrf(csrf -> csrf.disable())
+            .cors(withDefaults())
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll() // Allow pre-flight checks
-                // 2. Allow login, register, image uploads, and errors to be accessed without a token
+                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                 .requestMatchers("/api/users/register", "/api/users/login", "/uploads/**", "/error").permitAll()
-                // 3. Protect Admin Routes (Requires token with ADMIN role)
-                .requestMatchers("/api/admin/**", "/api/users/pending-vets").hasRole("ADMIN") 
+                .requestMatchers(HttpMethod.GET, "/api/products/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/reviews/product/**").permitAll()
+                .requestMatchers("/api/products/**").hasAnyAuthority("ADMIN","ROLE_ADMIN")
+                .requestMatchers("/api/admin/**","/api/users/pending-vets").hasAnyAuthority("ADMIN","ROLE_ADMIN")
+                .requestMatchers("/api/orders/admin/**").hasAnyAuthority("ADMIN","ROLE_ADMIN")
+                .requestMatchers(HttpMethod.DELETE,"/api/reviews/**").hasAnyAuthority("ADMIN","ROLE_ADMIN")
+                .requestMatchers("/api/orders/checkout","/api/orders/user/**").authenticated()
+                .requestMatchers(HttpMethod.POST,"/api/reviews").authenticated()
+                .requestMatchers("/api/pets/**").authenticated()
                 .anyRequest().authenticated()
             );
 
-        // 4. Add the JWT Filter BEFORE the standard Spring Security filter checks
         http.addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
@@ -51,18 +59,22 @@ public class SecurityConfig {
 
     @Bean
     public CorsFilter corsFilter() {
+
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         CorsConfiguration config = new CorsConfiguration();
+
         config.setAllowCredentials(true);
-        config.setAllowedOrigins(List.of("http://localhost:5173")); // YOUR REACT PORT
+        config.setAllowedOrigins(List.of(frontendUrl));
         config.setAllowedHeaders(List.of("*"));
-        config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        source.registerCorsConfiguration("/**", config);
+        config.setAllowedMethods(List.of("GET","POST","PUT","DELETE","OPTIONS"));
+
+        source.registerCorsConfiguration("/**",config);
+
         return new CorsFilter(source);
     }
 
     @Bean
     public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder(); 
+        return new BCryptPasswordEncoder();
     }
 }
