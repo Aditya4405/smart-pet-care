@@ -1,33 +1,67 @@
-HELP.md
+# =========================
+# Java / Spring Boot
+# =========================
+
+# Compiled class files
+*.class
+
+# Logs
+*.log
+
+# BlueJ files
+*.ctxt
+
+# Mobile Tools for Java
+.mtj.tmp/
+
+# Package files
+*.jar
+*.war
+*.nar
+*.ear
+*.zip
+*.tar.gz
+*.rar
+
+# JVM crash logs
+hs_err_pid*
+replay_pid*
+
+# =========================
+# Maven / Build
+# =========================
 target/
-.mvn/wrapper/maven-wrapper.jar
-!**/src/main/**/target/
-!**/src/test/**/target/
+!.mvn/wrapper/maven-wrapper.jar
 
-### STS ###
-.apt_generated
-.classpath
-.factorypath
-.project
-.settings
-.springBeans
-.sts4-cache
+# =========================
+# Environment variables
+# =========================
+.env
+.env.*
+*.env
 
-### IntelliJ IDEA ###
-.idea
-*.iws
+# =========================
+# Secret configuration
+# =========================
+application-secret.properties
+application-prod.properties
+
+# =========================
+# Uploads (User files)
+# =========================
+uploads/
+uploads/*
+/uploads/
+
+# =========================
+# IDE files
+# =========================
+.idea/
 *.iml
-*.ipr
-
-### NetBeans ###
-/nbproject/private/
-/nbbuild/
-/dist/
-/nbdist/
-/.nb-gradle/
-build/
-!**/src/main/**/build/
-!**/src/test/**/build/
-
-### VS Code ###
 .vscode/
+
+# =========================
+# OS files
+# =========================
+.DS_Store
+Thumbs.db
