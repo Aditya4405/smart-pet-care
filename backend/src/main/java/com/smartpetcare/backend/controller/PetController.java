@@ -2,6 +2,7 @@ package com.smartpetcare.backend.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.smartpetcare.backend.entity.Pet;
+import com.smartpetcare.backend.repository.PetRepository;
 import com.smartpetcare.backend.service.FileService;
 import com.smartpetcare.backend.service.PetService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,7 +24,10 @@ public class PetController {
     @Autowired
     private FileService fileService;
 
-    // --- ADD PET (Handles Data + Photo + Medical Document) ---
+    @Autowired
+    private PetRepository petRepository;
+
+    // --- ADD PET ---
     @PostMapping(value = "/owner/{ownerId}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<?> addPet(
             @PathVariable Long ownerId,
@@ -35,13 +39,11 @@ public class PetController {
             ObjectMapper mapper = new ObjectMapper();
             Pet pet = mapper.readValue(petString, Pet.class);
 
-            // 1. Save Profile Photo
             if (image != null && !image.isEmpty()) {
                 String imageName = fileService.saveFile(image);
                 pet.setImageUrl(imageName); 
             }
 
-            // 2. Save Medical Record PDF
             if (medicalDocument != null && !medicalDocument.isEmpty()) {
                 String docName = fileService.saveFile(medicalDocument);
                 pet.setMedicalRecordUrl(docName);
@@ -54,9 +56,29 @@ public class PetController {
         }
     }
 
-    // ... Keep your existing getOwnerPets and deletePet methods below ...
+    // --- FIX 405 ERROR: FETCH SINGLE PET ---
+    @GetMapping("/{id}")
+    public ResponseEntity<Pet> getPetById(@PathVariable Long id) {
+        return ResponseEntity.ok(petService.getPetById(id));
+    }
+
+    // --- GET OWNER PETS ---
     @GetMapping("/owner/{ownerId}")
     public ResponseEntity<List<Pet>> getOwnerPets(@PathVariable Long ownerId) {
         return ResponseEntity.ok(petService.getPetsByOwner(ownerId));
+    }
+
+    // --- UPDATE PET (For the Edit Modal) ---
+    @PutMapping("/{id}")
+    public ResponseEntity<Pet> updatePet(@PathVariable Long id, @RequestBody Pet petDetails) {
+        Pet updatedPet = petService.updatePet(id, petDetails);
+        return ResponseEntity.ok(updatedPet);
+    }
+
+    // --- ARCHIVE (SOFT DELETE) ---
+    @DeleteMapping("/{id}")
+    public ResponseEntity<?> archivePet(@PathVariable Long id) {
+        petService.deletePet(id);
+        return ResponseEntity.ok().body("Pet removed successfully.");
     }
 }
