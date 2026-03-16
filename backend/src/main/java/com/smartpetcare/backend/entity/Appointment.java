@@ -39,11 +39,13 @@ public class Appointment {
     
     private Integer amountPaid;
 
-    // --- NEW PAYMENT STATUS FIELD ---
-    // Will use: PENDING, PAID, REFUNDED
     private String paymentStatus;
+    private String transactionId;
 
-    // --- NEW TIMESTAMP FIELD ---
+    // --- REPLACED videoRoomId WITH meetLink ---
+    @Column(name = "meet_link")
+    private String meetLink;
+
     @Column(updatable = false)
     private LocalDateTime createdAt;
 
@@ -54,13 +56,12 @@ public class Appointment {
     private Boolean followUpEnabled;
     private Integer followUpDays;
 
-    // Automatically set the creation time when saved to the database!
     @PrePersist
     protected void onCreate() {
         this.createdAt = LocalDateTime.now();
     }
 
-    // --- MANUAL GETTERS AND SETTERS ---
+    // --- GETTERS AND SETTERS ---
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
 
@@ -103,9 +104,15 @@ public class Appointment {
     public Integer getFollowUpDays() { return followUpDays; }
     public void setFollowUpDays(Integer followUpDays) { this.followUpDays = followUpDays; }
 
-    // --- NEW GETTERS AND SETTERS ---
     public String getPaymentStatus() { return paymentStatus; }
     public void setPaymentStatus(String paymentStatus) { this.paymentStatus = paymentStatus; }
+
+    public String getTransactionId() { return transactionId; }
+    public void setTransactionId(String transactionId) { this.transactionId = transactionId; }
+
+    // --- GETTER & SETTER FOR MEET LINK ---
+    public String getMeetLink() { return meetLink; }
+    public void setMeetLink(String meetLink) { this.meetLink = meetLink; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
