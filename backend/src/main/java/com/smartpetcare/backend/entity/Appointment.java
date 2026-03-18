@@ -41,8 +41,18 @@ public class Appointment {
 
     private String paymentStatus;
     private String transactionId;
+    
+ 
+    private String prescriptionFileUrl;
 
-    // --- REPLACED videoRoomId WITH meetLink ---
+    public String getPrescriptionFileUrl() {
+		return prescriptionFileUrl;
+	}
+
+	public void setPrescriptionFileUrl(String prescriptionFileUrl) {
+		this.prescriptionFileUrl = prescriptionFileUrl;
+	}
+	// --- REPLACED videoRoomId WITH meetLink ---
     @Column(name = "meet_link")
     private String meetLink;
 
