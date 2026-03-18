@@ -21,7 +21,8 @@ import com.smartpetcare.backend.repository.UserRepository;
 import com.smartpetcare.backend.service.EmailService;
 import com.smartpetcare.backend.service.FileService;
 import com.smartpetcare.backend.service.AuditLogService;
-import com.smartpetcare.backend.service.GoogleCalendarService; 
+import com.smartpetcare.backend.service.GoogleCalendarService;
+import com.smartpetcare.backend.service.PrescriptionService;
 
 import jakarta.servlet.http.HttpServletRequest;
 
@@ -40,6 +41,9 @@ public class AppointmentController {
     private PetRepository petRepository;
     
     @Autowired
+    private PrescriptionService prescriptionService;
+    
+    @Autowired
     private FileService fileService;
     
     @Autowired
@@ -48,11 +52,9 @@ public class AppointmentController {
     @Autowired
     private AuditLogService auditLogService; 
 
-    // --- INJECT GOOGLE CALENDAR SERVICE ---
     @Autowired
     private GoogleCalendarService googleCalendarService;
 
-    // --- 1. BOOK APPOINTMENT (Starts as PENDING) ---
     @PostMapping(value = "/book", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<?> bookAppointment(
             @RequestPart("appointmentData") String appointmentJson,
@@ -81,7 +83,6 @@ public class AppointmentController {
             appointment.setSymptoms((String) payload.get("symptoms"));
             appointment.setAmountPaid(Integer.valueOf(payload.get("amountPaid").toString()));
             
-            // Starts as PENDING for Vet to review
             appointment.setStatus("PENDING"); 
             appointment.setPaymentStatus("PENDING");
 
@@ -90,7 +91,6 @@ public class AppointmentController {
                 appointment.setMedicalReportUrl(fileName);
             }
 
-            // --- GENERATE GOOGLE MEET LINK (Only for Video Consultations) ---
             if ("VIDEO".equalsIgnoreCase(appointment.getVisitType())) {
                 try {
                     String meetLink = googleCalendarService.createMeetLink(
@@ -100,22 +100,20 @@ public class AppointmentController {
                         appointment.getAppointmentTime()
                     );
                     
-                    // Fallback just in case the API failed
                     if (meetLink == null || meetLink.isEmpty()) {
                         System.err.println("WARNING: Google API returned a null link. Using a fallback link.");
-                        meetLink = "https://meet.google.com/new"; // Fallback link
+                        meetLink = "https://meet.google.com/new"; 
                     }
                     
                     appointment.setMeetLink(meetLink);
                 } catch (Exception e) {
                     System.err.println("CRITICAL ERROR generating Meet link: " + e.getMessage());
-                    appointment.setMeetLink("https://meet.google.com/new"); // Fallback link
+                    appointment.setMeetLink("https://meet.google.com/new"); 
                 }
             }
 
             Appointment saved = appointmentRepository.save(appointment);
 
-            // --- TRIGGER AUTOMATIC AUDIT LOG ---
             String ipAddress = request.getRemoteAddr();
             auditLogService.logAction(
                 "New Booking Request (Pending Vet Approval): APT-" + saved.getId(), 
@@ -131,7 +129,6 @@ public class AppointmentController {
         }
     }
 
-    // --- 2. VET ACCEPTS OR REJECTS ---
     @PutMapping("/{id}/vet-action")
     public ResponseEntity<?> vetAction(@PathVariable Long id, @RequestBody Map<String, String> payload, HttpServletRequest request) {
         try {
@@ -143,7 +140,6 @@ public class AppointmentController {
             if ("ACCEPT".equalsIgnoreCase(action)) {
                 appointment.setStatus("ACCEPTED");
                 
-                // SEND PAYMENT REQUIRED EMAIL TO OWNER
                 try {
                     emailService.sendPaymentRequiredEmail(
                         appointment.getOwner().getEmail(), 
@@ -165,7 +161,6 @@ public class AppointmentController {
             
             Appointment saved = appointmentRepository.save(appointment);
 
-            // --- TRIGGER AUTOMATIC AUDIT LOG ---
             auditLogService.logAction(
                 "Vet " + action + "ED Appointment APT-" + saved.getId(), 
                 "Dr. " + saved.getVet().getLastName(), 
@@ -179,7 +174,6 @@ public class AppointmentController {
         }
     }
 
-    // --- 3. OWNER PAYS (Changes to SCHEDULED and Sends Confirmation Email) ---
     @PutMapping("/{id}/pay")
     public ResponseEntity<?> payAppointment(@PathVariable Long id, HttpServletRequest request) {
         try {
@@ -190,7 +184,6 @@ public class AppointmentController {
             appointment.setPaymentStatus("PAID");
             Appointment saved = appointmentRepository.save(appointment);
             
-            // Send Final Email Confirmation NOW
             try {
                 emailService.sendAppointmentConfirmation(
                     saved.getOwner().getEmail(), saved.getOwner().getFirstName(), saved.getPet().getName(), 
@@ -200,7 +193,6 @@ public class AppointmentController {
                 System.out.println("Email sending failed: " + e.getMessage());
             }
 
-            // --- TRIGGER AUTOMATIC AUDIT LOG ---
             auditLogService.logAction(
                 "Payment Processed: ₹" + saved.getAmountPaid() + " for APT-" + saved.getId(), 
                 saved.getOwner().getFirstName() + " (Owner)", 
@@ -214,7 +206,6 @@ public class AppointmentController {
         }
     }
 
-    // --- 4. CANCEL APPOINTMENT (With 24-Hour Check) ---
     @PutMapping("/{id}/cancel")
     public ResponseEntity<?> cancelAppointment(@PathVariable Long id, @RequestBody Map<String, String> payload, HttpServletRequest request) {
         try {
@@ -246,7 +237,6 @@ public class AppointmentController {
             
             Appointment saved = appointmentRepository.save(appointment);
 
-            // --- TRIGGER AUTOMATIC AUDIT LOG ---
             auditLogService.logAction(
                 "Appointment APT-" + saved.getId() + " Cancelled", 
                 actorName, 
@@ -270,19 +260,37 @@ public class AppointmentController {
         return ResponseEntity.ok(appointmentRepository.findByVetId(vetId));
     }
 
+    // --- FULLY UPDATED COMPLETE ENDPOINT ---
     @PutMapping("/{id}/complete")
-    public ResponseEntity<?> completeAppointment(@PathVariable Long id, @RequestBody Map<String, Object> payload) {
+    public ResponseEntity<?> completeAppointment(
+            @PathVariable Long id,
+            @RequestBody Map<String, Object> payload
+    ) {
         try {
-            Appointment appointment = appointmentRepository.findById(id).orElseThrow(() -> new RuntimeException("Not found"));
-            appointment.setStatus("COMPLETED");
+            Appointment appointment = appointmentRepository.findById(id)
+                    .orElseThrow(() -> new RuntimeException("Not found"));
+
+            String notes = (String) payload.get("clinicalNotes");
+            Boolean followUpEnabled = (Boolean) payload.get("followUpEnabled");
             
-            if (payload.containsKey("clinicalNotes")) appointment.setClinicalNotes((String) payload.get("clinicalNotes"));
-            if (payload.containsKey("enableFollowUp")) appointment.setFollowUpEnabled((Boolean) payload.get("enableFollowUp"));
-            if (payload.containsKey("days") && payload.get("days") != null && !payload.get("days").toString().isEmpty()) {
-                appointment.setFollowUpDays(Integer.valueOf(payload.get("days").toString()));
+            // Handle parsing integer safely from JSON map
+            Integer followUpDays = null;
+            if (payload.get("followUpDays") != null) {
+                followUpDays = Integer.parseInt(payload.get("followUpDays").toString());
             }
-            
+
+            // ✅ GENERATE DOCX FILE
+            String fileName = prescriptionService.generateDoc(notes, id);
+
+            // ✅ SAVE DATA IN DB
+            appointment.setPrescriptionFileUrl(fileName);
+            appointment.setClinicalNotes(notes);
+            appointment.setFollowUpEnabled(followUpEnabled != null ? followUpEnabled : false);
+            appointment.setFollowUpDays(followUpDays);
+            appointment.setStatus("COMPLETED");
+
             return ResponseEntity.ok(appointmentRepository.save(appointment));
+
         } catch (Exception e) {
             return ResponseEntity.badRequest().body("Failed: " + e.getMessage());
         }
