@@ -18,26 +18,41 @@ public class PetService {
     @Autowired
     private UserRepository userRepository;
 
-    // --- ADD A NEW PET ---
     public Pet addPet(Long ownerId, Pet pet) {
-        // 1. Find the owner in the DB
         User owner = userRepository.findById(ownerId)
                 .orElseThrow(() -> new RuntimeException("Owner not found"));
-        
-        // 2. Attach the pet to this owner
         pet.setOwner(owner);
-        
-        // 3. Save to database
+        pet.setActive(true); 
         return petRepository.save(pet);
     }
 
-    // --- GET PETS FOR DASHBOARD ---
+    // --- FETCH SINGLE PET ---
+    public Pet getPetById(Long id) {
+        return petRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Pet not found with id: " + id));
+    }
+
     public List<Pet> getPetsByOwner(Long ownerId) {
         return petRepository.findByOwnerId(ownerId);
     }
 
-    // --- DELETE PET ---
+    // --- UPDATE PET LOGIC (STRICTLY NAME AND WEIGHT ONLY) ---
+    public Pet updatePet(Long id, Pet details) {
+        Pet existingPet = getPetById(id);
+        
+        // Only these two fields are allowed to change
+        existingPet.setName(details.getName());
+        existingPet.setWeight(details.getWeight());
+        
+        // We explicitly DO NOT set Breed, Gender, or DOB here 
+        // to ensure they remain unchanged in the database.
+        
+        return petRepository.save(existingPet);
+    }
+
     public void deletePet(Long petId) {
-        petRepository.deleteById(petId);
+        Pet pet = getPetById(petId);
+        pet.setActive(false); 
+        petRepository.save(pet);
     }
 }
