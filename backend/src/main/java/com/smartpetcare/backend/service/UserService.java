@@ -10,7 +10,7 @@ import org.springframework.stereotype.Service;
 import com.smartpetcare.backend.entity.User;
 import com.smartpetcare.backend.dto.LoginResponseDTO;
 import com.smartpetcare.backend.repository.UserRepository;
-import com.smartpetcare.backend.security.JwtUtil; // IMPORTING OUR NEW JWT UTILITY
+import com.smartpetcare.backend.security.JwtUtil;
 
 @Service
 public class UserService {
@@ -22,73 +22,114 @@ public class UserService {
     private PasswordEncoder passwordEncoder;
 
     @Autowired
-    private JwtUtil jwtUtil; // INJECTING JWT UTILITY
+    private JwtUtil jwtUtil;
 
-    // --- REGISTER USER ---
+    // ==============================
+    // 🔹 REGISTER USER
+    // ==============================
     public User registerUser(User user) {
-        // 1. Check if email already exists
+
+        // 1. Check if email exists
         if (userRepository.existsByEmail(user.getEmail())) {
             throw new RuntimeException("Email is already in use!");
         }
 
-        // 2. Set Status based on Role
+        // 2. Set Status
         if ("VET".equalsIgnoreCase(user.getRole())) {
-            user.setStatus("PENDING"); 
+            user.setStatus("PENDING");
             System.out.println("NOTIFICATION: New Vet " + user.getEmail() + " registered. Status: PENDING");
         } else {
             user.setStatus("APPROVED");
         }
 
-        // 3. Hash the password before saving
+        // 3. Encrypt password
         user.setPassword(passwordEncoder.encode(user.getPassword()));
 
         return userRepository.save(user);
     }
-    
-    // --- LOGIN USER ---
-    public LoginResponseDTO loginUser(String email, String password) {
-        // 1. Find user by email
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("User not found"));
 
-        // 2. Check password securely
-        if (!passwordEncoder.matches(password, user.getPassword())) {
-            throw new RuntimeException("Invalid credentials");
+    // ==============================
+    // 🔹 LOGIN USER (UPDATED FIX)
+    // ==============================
+    public LoginResponseDTO loginUser(String email, String password) {
+
+        // 1. Find user
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Invalid credentials"));
+
+        String storedPassword = user.getPassword();
+
+        // ==============================
+        // 🔥 HANDLE OLD (PLAIN TEXT) PASSWORDS
+        // ==============================
+        if (!storedPassword.startsWith("$2a$")) {
+            // Old password (plain text)
+
+            if (!storedPassword.equals(password)) {
+                throw new RuntimeException("Invalid credentials");
+            }
+
+            // 🔥 Auto-upgrade to BCrypt
+            user.setPassword(passwordEncoder.encode(password));
+            userRepository.save(user);
+
+        } else {
+            // BCrypt password
+            if (!passwordEncoder.matches(password, storedPassword)) {
+                throw new RuntimeException("Invalid credentials");
+            }
         }
-        
-        // 3. Check Status
+
+        // ==============================
+        // 🔹 STATUS CHECKS
+        // ==============================
         if ("PENDING".equalsIgnoreCase(user.getStatus())) {
             throw new RuntimeException("Account is pending Admin Approval. Please wait.");
         }
+
         if ("REJECTED".equalsIgnoreCase(user.getStatus())) {
             throw new RuntimeException("Your account was rejected by Admin.");
         }
 
-        // 4. GENERATE JWT TOKEN
+        if ("BANNED".equalsIgnoreCase(user.getStatus()) ||
+            "SUSPENDED".equalsIgnoreCase(user.getStatus())) {
+            throw new RuntimeException("Your account is restricted. Contact support.");
+        }
+
+        // ==============================
+        // 🔹 GENERATE JWT
+        // ==============================
         String token = jwtUtil.generateToken(user.getEmail(), user.getRole());
 
-        // 5. Build DTO and attach token
         LoginResponseDTO response = new LoginResponseDTO(user);
-        response.setToken(token); // Put the token inside the response body
-        
+        response.setToken(token);
+
         return response;
     }
 
-    // --- ADMIN: GET PENDING VETS ---
+    // ==============================
+    // 🔹 ADMIN: PENDING VETS
+    // ==============================
     public List<User> getPendingVets() {
         return userRepository.findAll().stream()
                 .filter(u -> "VET".equals(u.getRole()) && "PENDING".equals(u.getStatus()))
                 .collect(Collectors.toList());
     }
 
-    // --- ADMIN: APPROVE/REJECT USER ---
+    // ==============================
+    // 🔹 ADMIN: UPDATE STATUS
+    // ==============================
     public User updateUserStatus(Long userId, String newStatus) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
-        
+
         user.setStatus(newStatus);
         return userRepository.save(user);
     }
+
+    // ==============================
+    // 🔹 APPROVED VETS
+    // ==============================
     public List<User> getApprovedVets() {
         return userRepository.findAll().stream()
                 .filter(u -> "VET".equals(u.getRole()) && "APPROVED".equals(u.getStatus()))
