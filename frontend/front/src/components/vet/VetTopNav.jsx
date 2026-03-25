@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { 
   Bell, ChevronDown, User, Settings, LogOut, 
-  Stethoscope, Moon, Sun, Calendar, CheckCircle 
+  Stethoscope, Moon, Sun, Calendar, CheckCircle, AlertTriangle 
 } from 'lucide-react';
 import { useTheme } from '../../hooks/useTheme';
 
@@ -10,7 +10,6 @@ const VetTopNav = () => {
   const navigate = useNavigate();
   const { theme, toggleTheme } = useTheme(); 
   
-  // --- STATE ---
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
@@ -20,7 +19,6 @@ const VetTopNav = () => {
   
   const user = JSON.parse(localStorage.getItem('user')) || { id: 2, firstName: 'Aditya', lastName: 'Prajapati' };
 
-  // --- FETCH REAL VET NOTIFICATIONS ---
   useEffect(() => {
     const fetchNotifications = async () => {
       try {
@@ -34,26 +32,39 @@ const VetTopNav = () => {
         if (response.ok) {
           const appts = await response.json();
           
-          // Get previously read notifications from LocalStorage
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+
           const readNotifIds = JSON.parse(localStorage.getItem('readVetNotifications')) || [];
+          const upcoming = appts.filter(a => a.status === 'SCHEDULED' || a.status === 'PENDING');
           
-          // Find appointments (You can change this to look for specific statuses)
-          const upcoming = appts.filter(a => a.status === 'SCHEDULED');
-          
-          // Map them into notification objects
           const dynamicNotifs = upcoming.map(appt => {
-             const notifId = `vet-appt-${appt.id}`;
-             return {
-                 id: notifId,
-                 type: 'appointment',
-                 title: 'New Appointment Booked',
-                 message: `${appt.owner.firstName} booked a consult for their pet, ${appt.pet.name}, on ${appt.appointmentDate}.`,
-                 time: appt.appointmentTime,
-                 read: readNotifIds.includes(notifId)
-             };
+              const notifId = `vet-appt-${appt.id}`;
+              
+              const appointmentDate = new Date(appt.appointmentDate);
+              appointmentDate.setHours(0, 0, 0, 0);
+
+              const isPast = appointmentDate < today;
+              const isToday = appointmentDate.getTime() === today.getTime();
+
+              let title = appt.status === 'PENDING' ? 'New Appointment Request' : 'Upcoming Consultation';
+              
+              if (isPast) {
+                  title = 'Past Consultation';
+              } else if (isToday) {
+                  title = 'Consultation Today';
+              }
+
+              return {
+                  id: notifId,
+                  type: isPast ? 'alert' : 'appointment',
+                  title: title,
+                  message: `${appt.owner.firstName} booked a consult for their pet, ${appt.pet.name}, on ${appt.appointmentDate}.`,
+                  time: appt.appointmentTime,
+                  read: readNotifIds.includes(notifId)
+              };
           });
 
-          // Sort newest first (assuming higher ID is newer)
           dynamicNotifs.sort((a, b) => b.id.localeCompare(a.id));
           setNotifications(dynamicNotifs);
         }
@@ -65,7 +76,6 @@ const VetTopNav = () => {
     fetchNotifications();
   }, [user.id]);
 
-  // Close dropdowns when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) setIsDropdownOpen(false);
@@ -81,7 +91,6 @@ const VetTopNav = () => {
     navigate('/login');
   };
 
-  // --- HANDLE CLICKING A SINGLE NOTIFICATION ---
   const handleNotificationClick = (notif) => {
       const updatedNotifs = notifications.map(n => 
           n.id === notif.id ? { ...n, read: true } : n
@@ -94,10 +103,9 @@ const VetTopNav = () => {
       }
 
       setIsNotifOpen(false);
-      navigate('/vet/schedule'); // Take vet straight to their schedule
+      navigate('/vet/schedule'); 
   };
 
-  // --- HANDLE "MARK ALL READ" ---
   const markAllAsRead = () => {
       const updated = notifications.map(n => ({ ...n, read: true }));
       setNotifications(updated);
@@ -112,16 +120,17 @@ const VetTopNav = () => {
     { name: 'Schedule', path: '/vet/schedule' },
     { name: 'Patients', path: '/vet/patients' },
     { name: 'Marketplace', path: '/vet/marketplace' },
+    { name: 'My Orders', path: '/vet/orders' },
     { name: 'Analytics', path: '/vet/analytics' },
     { name: 'Support', path: '/vet/support' },
   ];
 
   return (
-    <nav className="sticky top-0 z-50 w-full border-b border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md transition-all duration-300">
+    // ✅ CHANGED to "fixed top-0 left-0 w-full"
+    <nav className="fixed top-0 left-0 w-full z-50 border-b border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md transition-all duration-300">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           
-          {/* Logo */}
           <div className="flex items-center gap-2.5 cursor-pointer group" onClick={() => navigate('/vet/dashboard')}>
             <div className="w-9 h-9 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-xl flex items-center justify-center text-white font-bold shadow-lg shadow-emerald-500/20 group-hover:scale-105 transition-all duration-300">
               <Stethoscope className="w-5 h-5" />
@@ -129,14 +138,13 @@ const VetTopNav = () => {
             <span className="font-bold text-xl tracking-tight text-slate-900 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">VetConsole</span>
           </div>
 
-          {/* Navigation Links */}
-          <div className="hidden md:flex items-center gap-1 p-1 rounded-full border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50">
+          <div className="hidden lg:flex items-center gap-1 p-1 rounded-full border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50">
             {navLinks.map((link) => (
               <NavLink
                 key={link.name}
                 to={link.path}
                 className={({ isActive }) =>
-                  `px-5 py-1.5 rounded-full text-sm font-medium transition-all duration-200 ${
+                  `px-4 py-1.5 rounded-full text-sm font-medium transition-all duration-200 ${
                     isActive
                       ? 'bg-white dark:bg-slate-700 text-emerald-700 dark:text-emerald-300 shadow-sm ring-1 ring-slate-200 dark:ring-slate-600'
                       : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/50 dark:hover:bg-slate-700/50'
@@ -148,17 +156,15 @@ const VetTopNav = () => {
             ))}
           </div>
 
-          {/* Right Side Actions */}
           <div className="flex items-center gap-3 sm:gap-4">
             
-            {/* --- NOTIFICATION BELL --- */}
             <div className="relative" ref={notifRef}>
               <button 
                 onClick={() => setIsNotifOpen(!isNotifOpen)}
                 className={`relative p-2.5 rounded-xl transition-all duration-200 ${
                   isNotifOpen 
                     ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400' 
-                    : 'text-slate-500 hover:text-emerald-600 dark:text-slate-400 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20'
+                    : 'text-slate-50 hover:text-emerald-600 dark:text-slate-400 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20'
                 }`}
               >
                 <Bell className="w-5 h-5" />
@@ -167,7 +173,6 @@ const VetTopNav = () => {
                 )}
               </button>
 
-              {/* Notification Dropdown */}
               {isNotifOpen && (
                 <div className="absolute right-0 mt-3 w-80 sm:w-96 bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-700 overflow-hidden animate-in fade-in zoom-in-95 duration-200 origin-top-right z-50">
                   <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-slate-800/50">
@@ -193,8 +198,8 @@ const VetTopNav = () => {
                              onClick={() => handleNotificationClick(notif)}
                              className={`p-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors cursor-pointer flex gap-4 ${!notif.read ? 'bg-emerald-50/30 dark:bg-emerald-900/10' : ''}`}
                           >
-                             <div className="mt-1 shrink-0 w-10 h-10 rounded-full flex items-center justify-center bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400">
-                                <Calendar className="w-5 h-5" />
+                             <div className={`mt-1 shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${notif.type === 'alert' ? 'bg-amber-100 text-amber-600' : 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30'}`}>
+                                 {notif.type === 'alert' ? <AlertTriangle className="w-5 h-5" /> : <Calendar className="w-5 h-5" />}
                              </div>
                              <div>
                                <p className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
@@ -218,7 +223,6 @@ const VetTopNav = () => {
               )}
             </div>
 
-            {/* --- PROFILE DROPDOWN --- */}
             <div className="relative" ref={dropdownRef}>
               <button 
                 onClick={() => setIsDropdownOpen(!isDropdownOpen)}

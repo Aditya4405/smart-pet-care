@@ -5,6 +5,7 @@ import {
   PawPrint, Moon, Sun, Calendar, AlertTriangle, CheckCircle 
 } from 'lucide-react';
 import { useTheme } from '../../hooks/useTheme';
+import { API } from '../../config/api';
 
 const OwnerTopNav = () => {
   const navigate = useNavigate();
@@ -18,15 +19,18 @@ const OwnerTopNav = () => {
   const notifRef = useRef(null);
   
   const user = JSON.parse(localStorage.getItem('user')) || { id: 1, firstName: 'Pet', lastName: 'Owner' };
+  
+  // ✅ CLEAN ID FIX
+  const cleanId = user.id ? String(user.id).split(':')[0] : null;
 
-  // --- FETCH REAL NOTIFICATIONS ---
   useEffect(() => {
     const fetchNotifications = async () => {
       try {
         const token = localStorage.getItem('token');
-        if (!user.id || !token) return;
+        if (!cleanId || !token) return;
 
-        const response = await fetch(`http://localhost:8082/api/appointments/owner/${user.id}`, {
+        // ✅ DYNAMIC URL FIX
+        const response = await fetch(`${API.BASE_API}/appointments/owner/${cleanId}`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
 
@@ -34,43 +38,46 @@ const OwnerTopNav = () => {
           const appts = await response.json();
           const readNotifIds = JSON.parse(localStorage.getItem('readNotifications')) || [];
           
-          // Look for both SCHEDULED and ACCEPTED (needs payment)
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+
           const upcomingOrPending = appts.filter(a => a.status === 'SCHEDULED' || a.status === 'ACCEPTED');
           
           const dynamicNotifs = upcomingOrPending.map(appt => {
-             // Add status to ID so if it changes from ACCEPTED to SCHEDULED, it becomes unread again
-             const notifId = `appt-${appt.id}-${appt.status}`; 
-             
-             let notifTitle = 'Upcoming Appointment';
-             let notifMessage = `${appt.pet.name} has a visit with Dr. ${appt.vet.lastName} on ${appt.appointmentDate}.`;
-             
-             // Dynamic text for Payment required
-             if (appt.status === 'ACCEPTED') {
-                 notifTitle = 'Action Required: Payment';
-                 notifMessage = `Dr. ${appt.vet.lastName} accepted your request for ${appt.pet.name}! Please complete payment to confirm.`;
-             }
+              const notifId = `appt-${appt.id}-${appt.status}`; 
+              
+              const appointmentDate = new Date(appt.appointmentDate);
+              appointmentDate.setHours(0, 0, 0, 0);
 
-             return {
-                 id: notifId,
-                 type: 'appointment',
-                 title: notifTitle,
-                 message: notifMessage,
-                 time: appt.appointmentTime,
-                 read: readNotifIds.includes(notifId)
-             };
+              const isPast = appointmentDate < today;
+              const isToday = appointmentDate.getTime() === today.getTime();
+
+              let notifTitle = 'Upcoming Appointment';
+              let notifMessage = `${appt.pet?.name || 'Your pet'} has a visit with Dr. ${appt.vet?.lastName || 'Vet'} on ${appt.appointmentDate}.`;
+              
+              if (isPast) {
+                  notifTitle = 'Past Appointment';
+                  notifMessage = `The scheduled visit for ${appt.pet?.name} on ${appt.appointmentDate} has passed.`;
+              } else if (isToday) {
+                  notifTitle = 'Appointment Today!';
+                  notifMessage = `Reminder: ${appt.pet?.name} has a visit with Dr. ${appt.vet?.lastName} today!`;
+              } else if (appt.status === 'ACCEPTED') {
+                  notifTitle = 'Action Required: Payment';
+                  notifMessage = `Dr. ${appt.vet?.lastName} accepted your request for ${appt.pet?.name}! Please complete payment to confirm.`;
+              }
+
+              return {
+                  id: notifId,
+                  type: isPast ? 'alert' : 'appointment',
+                  title: notifTitle,
+                  message: notifMessage,
+                  time: appt.appointmentTime,
+                  read: readNotifIds.includes(notifId)
+              };
           });
 
-          // Mock health alert
-          const healthAlert = {
-             id: 'health-1',
-             type: 'alert',
-             title: 'Vaccination Due',
-             message: 'Bordetella vaccine is currently overdue.',
-             time: 'Just now',
-             read: readNotifIds.includes('health-1') 
-          };
-
-          setNotifications([healthAlert, ...dynamicNotifs]);
+          // ✅ MOCK DATA REMOVED! Only setting real dynamic notifications now.
+          setNotifications(dynamicNotifs);
         }
       } catch (error) {
         console.error("Failed to fetch notifications:", error);
@@ -78,7 +85,7 @@ const OwnerTopNav = () => {
     };
 
     fetchNotifications();
-  }, [user.id]);
+  }, [cleanId]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -108,8 +115,12 @@ const OwnerTopNav = () => {
 
       setIsNotifOpen(false);
 
-      if (notif.type === 'appointment') navigate('/owner/appointments');
-      else if (notif.type === 'alert') navigate('/owner/pets');
+      if (notif.title.toLowerCase().includes('appointment') || notif.title.includes('Payment')) {
+        navigate('/owner/appointments'); 
+      } 
+      else if (notif.type === 'alert') {
+        navigate('/owner/pets');
+      }
   };
 
   const markAllAsRead = () => {
@@ -126,12 +137,13 @@ const OwnerTopNav = () => {
     { name: 'Find Vet', path: '/owner/doctors' },
     { name: 'My Pets', path: '/owner/pets' },
     { name: 'Marketplace', path: '/owner/marketplace' },
+    { name: 'My Orders', path: '/owner/orders' },
     { name: 'Appointments', path: '/owner/appointments' },
     { name: 'Support', path: '/owner/support' }
   ];
 
   return (
-    <nav className="sticky top-0 z-50 w-full border-b border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md transition-all duration-300">
+    <nav className="fixed top-0 left-0 w-full z-50 border-b border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md transition-all duration-300">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           
@@ -142,13 +154,13 @@ const OwnerTopNav = () => {
             <span className="font-bold text-xl tracking-tight text-slate-900 dark:text-white group-hover:text-cyan-600 dark:group-hover:text-cyan-400 transition-colors">PetCare</span>
           </div>
 
-          <div className="hidden md:flex items-center gap-1 p-1 rounded-full border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50">
+          <div className="hidden lg:flex items-center gap-1 p-1 rounded-full border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50">
             {navLinks.map((link) => (
               <NavLink
                 key={link.name}
                 to={link.path}
                 className={({ isActive }) =>
-                  `px-5 py-1.5 rounded-full text-sm font-medium transition-all duration-200 ${
+                  `px-4 py-1.5 rounded-full text-sm font-medium transition-all duration-200 ${
                     isActive
                       ? 'bg-white dark:bg-slate-700 text-cyan-700 dark:text-cyan-300 shadow-sm ring-1 ring-slate-200 dark:ring-slate-600'
                       : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/50 dark:hover:bg-slate-700/50'
@@ -161,7 +173,6 @@ const OwnerTopNav = () => {
           </div>
 
           <div className="flex items-center gap-3 sm:gap-4">
-            
             <div className="relative" ref={notifRef}>
               <button 
                 onClick={() => setIsNotifOpen(!isNotifOpen)}
@@ -203,7 +214,7 @@ const OwnerTopNav = () => {
                              className={`p-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors cursor-pointer flex gap-4 ${!notif.read ? 'bg-cyan-50/30 dark:bg-cyan-900/10' : ''}`}
                           >
                              <div className={`mt-1 shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${notif.type === 'alert' ? 'bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400' : 'bg-cyan-100 text-cyan-600 dark:bg-cyan-900/30 dark:text-cyan-400'}`}>
-                                {notif.type === 'alert' ? <AlertTriangle className="w-5 h-5" /> : <Calendar className="w-5 h-5" />}
+                                 {notif.type === 'alert' ? <AlertTriangle className="w-5 h-5" /> : <Calendar className="w-5 h-5" />}
                              </div>
                              <div>
                                <p className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
@@ -217,11 +228,6 @@ const OwnerTopNav = () => {
                         ))}
                       </div>
                     )}
-                  </div>
-                  <div className="p-3 border-t border-slate-100 dark:border-slate-800 text-center bg-slate-50/50 dark:bg-slate-800/50">
-                    <button onClick={() => { setIsNotifOpen(false); navigate('/owner/appointments'); }} className="text-sm font-bold text-slate-600 dark:text-slate-400 hover:text-cyan-600 dark:hover:text-cyan-400 transition-colors">
-                      View all activity
-                    </button>
                   </div>
                 </div>
               )}
