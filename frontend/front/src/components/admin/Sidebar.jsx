@@ -1,9 +1,8 @@
 import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { 
-  LayoutDashboard, Stethoscope, Users, Calendar, 
-  ShoppingBag, BarChart3, Settings, LogOut, DollarSign, 
-  ShieldAlert, LifeBuoy, FileText
+  LayoutDashboard, Users, Stethoscope, Store, 
+  PackageSearch, BarChart3, Settings, LogOut 
 } from 'lucide-react';
 
 const Sidebar = () => {
@@ -15,42 +14,42 @@ const Sidebar = () => {
     navigate('/login');
   };
 
-  // EVERY PATH HERE MUST MATCH APP.JSX EXACTLY!
   const navItems = [
-    { icon: LayoutDashboard, label: 'Overview', path: '/admin/dashboard' },
-    { icon: Users, label: 'User Management', path: '/admin/users' },
+    { icon: LayoutDashboard, label: 'Dashboard', path: '/admin/dashboard' },
+    { icon: Users, label: 'Users', path: '/admin/users' },
     { icon: Stethoscope, label: 'Doctor Approvals', path: '/admin/doctors' },
-    { icon: Calendar, label: 'Appointments', path: '/admin/appointments' },
-    { icon: ShoppingBag, label: 'Marketplace', path: '/admin/marketplace' },
-    { icon: DollarSign, label: 'Financials', path: '/admin/financials' },
+    { icon: Store, label: 'Marketplace Management', path: '/admin/marketplace' },
+    { icon: PackageSearch, label: 'Orders', path: '/admin/orders' }, // NEW ORDERS LINK
     { icon: BarChart3, label: 'Analytics', path: '/admin/analytics' },
-    { icon: ShieldAlert, label: 'Moderation', path: '/admin/moderation' },
-    { icon: LifeBuoy, label: 'Support', path: '/admin/support' },
-    { icon: FileText, label: 'Audit Logs', path: '/admin/audit-logs' },
     { icon: Settings, label: 'Settings', path: '/admin/settings' },
   ];
 
   return (
-    <aside className="hidden md:flex flex-col w-64 bg-slate-900 border-r border-slate-800 text-slate-300 overflow-y-auto">
-      <div className="h-16 flex items-center px-6 border-b border-slate-800 sticky top-0 bg-slate-900 z-10">
-        <div className="w-8 h-8 bg-indigo-500 rounded-lg flex items-center justify-center mr-3">
-          <span className="text-white font-bold text-lg">P</span>
+    <aside className="hidden md:flex flex-col w-72 bg-slate-950 border-r border-slate-800 text-slate-300 h-screen overflow-y-auto sticky top-0">
+      
+      {/* Brand Header */}
+      <div className="h-20 flex items-center px-6 border-b border-slate-800/60 shrink-0">
+        <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center mr-3 shadow-lg shadow-indigo-500/20">
+          <span className="text-white font-extrabold text-xl tracking-tighter">SC</span>
         </div>
-        <span className="font-bold text-white tracking-tight">AdminPanel</span>
+        <div>
+          <span className="font-extrabold text-white text-lg tracking-tight block leading-none">SmartCare</span>
+          <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest">Admin Portal</span>
+        </div>
       </div>
 
-      <div className="flex-1 py-6 px-3">
-        <p className="px-3 text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Platform</p>
-        <nav className="space-y-1">
+      <div className="flex-1 py-8 px-4">
+        <p className="px-4 text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-4">Menu</p>
+        <nav className="space-y-1.5">
           {navItems.map((item) => (
             <NavLink
               key={item.path}
               to={item.path}
               className={({ isActive }) => `
-                flex items-center px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200
+                flex items-center px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-200
                 ${isActive 
-                  ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20' 
-                  : 'hover:bg-slate-800 hover:text-white'}
+                  ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20' 
+                  : 'text-slate-400 hover:bg-slate-800/80 hover:text-slate-200'}
               `}
             >
               <item.icon className="w-5 h-5 mr-3" />
@@ -60,10 +59,10 @@ const Sidebar = () => {
         </nav>
       </div>
 
-      <div className="p-4 border-t border-slate-800">
+      <div className="p-4 border-t border-slate-800/60 mb-2">
         <button 
           onClick={handleLogout}
-          className="flex items-center w-full px-3 py-2 text-sm font-medium text-red-400 hover:bg-slate-800 rounded-lg transition-colors"
+          className="flex items-center w-full px-4 py-3 text-sm font-semibold text-red-400 hover:bg-red-500/10 hover:text-red-300 rounded-xl transition-colors"
         >
           <LogOut className="w-5 h-5 mr-3" />
           Sign Out
