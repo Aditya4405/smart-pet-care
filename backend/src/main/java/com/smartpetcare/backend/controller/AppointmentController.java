@@ -4,6 +4,7 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import org.springframework.http.MediaType;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,7 +29,7 @@ import jakarta.servlet.http.HttpServletRequest;
 
 @RestController
 @RequestMapping("/api/appointments")
-@CrossOrigin(origins = "http://localhost:5173")
+@CrossOrigin(origins = "*") // Changed to * to prevent CORS issues
 public class AppointmentController {
 
     @Autowired
@@ -260,7 +261,6 @@ public class AppointmentController {
         return ResponseEntity.ok(appointmentRepository.findByVetId(vetId));
     }
 
-    // --- FULLY UPDATED COMPLETE ENDPOINT ---
     @PutMapping("/{id}/complete")
     public ResponseEntity<?> completeAppointment(
             @PathVariable Long id,
@@ -273,16 +273,13 @@ public class AppointmentController {
             String notes = (String) payload.get("clinicalNotes");
             Boolean followUpEnabled = (Boolean) payload.get("followUpEnabled");
             
-            // Handle parsing integer safely from JSON map
             Integer followUpDays = null;
             if (payload.get("followUpDays") != null) {
                 followUpDays = Integer.parseInt(payload.get("followUpDays").toString());
             }
 
-            // ✅ GENERATE DOCX FILE
             String fileName = prescriptionService.generateDoc(notes, id);
 
-            // ✅ SAVE DATA IN DB
             appointment.setPrescriptionFileUrl(fileName);
             appointment.setClinicalNotes(notes);
             appointment.setFollowUpEnabled(followUpEnabled != null ? followUpEnabled : false);
@@ -294,5 +291,26 @@ public class AppointmentController {
         } catch (Exception e) {
             return ResponseEntity.badRequest().body("Failed: " + e.getMessage());
         }
+    }
+
+    // ========================================================
+    // ✅ NEW: GET BOOKED TIMES FOR A DOCTOR ON A SPECIFIC DATE
+    // ========================================================
+    @GetMapping("/booked-times")
+    public ResponseEntity<List<String>> getBookedTimes(
+            @RequestParam Long doctorId,
+            @RequestParam String date) { 
+        
+        // Fetch all appointments for this vet
+        List<Appointment> vetAppointments = appointmentRepository.findByVetId(doctorId);
+        
+        // Filter out cancelled ones, match the requested date, and extract the times
+        List<String> bookedTimes = vetAppointments.stream()
+                .filter(a -> date.equals(a.getAppointmentDate()))
+                .filter(a -> !"CANCELLED".equalsIgnoreCase(a.getStatus()) && !"REJECTED".equalsIgnoreCase(a.getStatus()) && !"CANCELLED_BY_VET".equalsIgnoreCase(a.getStatus()))
+                .map(Appointment::getAppointmentTime)
+                .collect(Collectors.toList());
+                
+        return ResponseEntity.ok(bookedTimes);
     }
 }
