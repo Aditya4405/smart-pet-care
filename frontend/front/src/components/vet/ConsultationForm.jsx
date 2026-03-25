@@ -1,12 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Save, CalendarCheck, X } from 'lucide-react';
 
-const ConsultationForm = ({ isOpen, onClose, onComplete }) => {
+const ConsultationForm = ({ isOpen, onClose, onComplete, initialData }) => {
   if (!isOpen) return null;
 
-  const [notes, setNotes] = useState('');
-  const [enableFollowUp, setEnableFollowUp] = useState(false);
-  const [days, setDays] = useState(3);
+  // Use initialData if the vet is editing an existing prescription
+  const [notes, setNotes] = useState(initialData?.clinicalNotes || '');
+  const [enableFollowUp, setEnableFollowUp] = useState(initialData?.followUpEnabled || false);
+  const [days, setDays] = useState(initialData?.followUpDays || 3);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -15,7 +16,7 @@ const ConsultationForm = ({ isOpen, onClose, onComplete }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
       <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md border border-slate-200 dark:border-slate-700 overflow-hidden animate-in zoom-in-95 duration-200">
         
         {/* Header */}
@@ -33,7 +34,7 @@ const ConsultationForm = ({ isOpen, onClose, onComplete }) => {
             <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1">Clinical Notes</label>
             <textarea 
               className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 focus:ring-2 focus:ring-emerald-500 outline-none"
-              rows="3"
+              rows="4"
               placeholder="Diagnosis & Prescription..."
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
@@ -58,7 +59,7 @@ const ConsultationForm = ({ isOpen, onClose, onComplete }) => {
                      type="number" 
                      value={days} 
                      onChange={(e) => setDays(e.target.value)} 
-                     className="w-20 p-2 text-center border border-slate-200 rounded-lg font-bold"
+                     className="w-20 p-2 text-center border border-slate-200 dark:border-slate-600 rounded-lg font-bold bg-white dark:bg-slate-900 dark:text-white"
                    />
                    <span className="text-sm text-slate-500">days</span>
                  </div>
