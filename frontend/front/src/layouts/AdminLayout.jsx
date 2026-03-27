@@ -1,11 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  LayoutDashboard, Users, Stethoscope, Calendar, ShoppingBag, 
+  LayoutDashboard, Users, Stethoscope, Calendar, ShoppingBag, PackageSearch,
   CreditCard, BarChart2, ShieldAlert, LifeBuoy, Settings, 
-  FileText, LogOut, Search, Bell, ChevronLeft, ChevronRight, Zap, Activity, Sun, Moon
+  FileText, LogOut, Search, Bell, ChevronLeft, ChevronRight, Zap, Activity, Sun, Moon,
+  AlertTriangle, Shield, Info // <-- ADDED THESE FOR NOTIFICATIONS
 } from 'lucide-react';
+import { API } from "../config/api";
+
+const BASE_API = API.BASE_API;
 
 const AdminLayout = () => {
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -17,6 +21,44 @@ const AdminLayout = () => {
   
   const navigate = useNavigate();
   const location = useLocation();
+
+  // --- NOTIFICATION STATE ---
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const notifRef = useRef(null);
+
+  // --- FETCH RECENT LOGS FOR NOTIFICATIONS ---
+  const fetchRecentLogs = async () => {
+    try {
+      const res = await fetch(`${BASE_API}/admin/audit-logs`, {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const sorted = data.sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp)).slice(0, 5);
+        setNotifications(sorted);
+        setUnreadCount(sorted.length > 0 ? sorted.length : 0);
+      }
+    } catch (e) { console.error("Failed to fetch notifications"); }
+  };
+
+  useEffect(() => {
+    fetchRecentLogs();
+    const interval = setInterval(fetchRecentLogs, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // --- CLICK OUTSIDE TO CLOSE NOTIFICATIONS ---
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (notifRef.current && !notifRef.current.contains(e.target)) {
+        setShowNotifications(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   useEffect(() => {
     if (theme === 'dark') {
@@ -38,6 +80,7 @@ const AdminLayout = () => {
     { icon: Stethoscope, label: 'Doctor Approvals', path: '/admin/doctors' },
     { icon: Calendar, label: 'Appointments', path: '/admin/appointments' },
     { icon: ShoppingBag, label: 'Marketplace', path: '/admin/marketplace' },
+    { icon: PackageSearch, label: 'Orders', path: '/admin/orders' },
     { icon: CreditCard, label: 'Financials', path: '/admin/financials' },
     { icon: BarChart2, label: 'Analytics', path: '/admin/analytics' },
     { icon: ShieldAlert, label: 'Moderation', path: '/admin/moderation' },
@@ -55,6 +98,7 @@ const AdminLayout = () => {
       if (e.key === 'Escape') {
         setShowCommandPalette(false);
         setShowProfileMenu(false);
+        setShowNotifications(false);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -64,6 +108,12 @@ const AdminLayout = () => {
   const handleLogout = () => {
     localStorage.clear();
     navigate('/login');
+  };
+
+  const getIconForSeverity = (sev) => {
+      if(sev === 'CRITICAL') return <Shield className="w-4 h-4 text-red-500" />;
+      if(sev === 'WARNING') return <AlertTriangle className="w-4 h-4 text-amber-500" />;
+      return <Info className="w-4 h-4 text-blue-500" />;
   };
 
   return (
@@ -116,7 +166,6 @@ const AdminLayout = () => {
         </nav>
       </motion.aside>
 
-      {/* 🚨 FIXED: Replaced buggy gradient with rock-solid dark:bg-slate-950 🚨 */}
       {/* MAIN CONTENT AREA */}
       <div className="flex-1 flex flex-col min-w-0 bg-slate-50 dark:bg-slate-950 transition-colors duration-300">
         
@@ -137,10 +186,61 @@ const AdminLayout = () => {
             <div className="flex items-center gap-2 text-xs font-bold text-slate-500 dark:text-slate-400 mr-2 cursor-pointer hover:text-slate-900 dark:hover:text-white transition-colors" title="API Status">
                 <Activity size={14} className="text-emerald-500" /> 12ms
             </div>
-            <button className="relative text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-white transition-colors">
-              <Bell size={18} />
-              <span className="absolute -top-1 -right-1 w-2 h-2 bg-indigo-500 rounded-full ring-2 ring-white dark:ring-slate-900 animate-pulse"></span>
-            </button>
+            
+            {/* --- NOTIFICATION BELL & DROPDOWN --- */}
+            <div className="relative" ref={notifRef}>
+              <button 
+                onClick={() => {
+                  setShowNotifications(!showNotifications);
+                  if (!showNotifications) setUnreadCount(0);
+                }}
+                className="relative text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-white transition-colors p-1"
+              >
+                <Bell size={18} />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-indigo-500 rounded-full ring-2 ring-white dark:ring-slate-900 flex items-center justify-center text-[8px] font-bold text-white animate-pulse">
+                    {unreadCount}
+                  </span>
+                )}
+              </button>
+
+              <AnimatePresence>
+                {showNotifications && (
+                  <motion.div initial={{ opacity: 0, y: 10, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 10, scale: 0.95 }} transition={{ duration: 0.15 }} className="absolute right-0 mt-3 w-80 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl z-50 overflow-hidden">
+                    <div className="p-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/50 flex justify-between items-center">
+                      <h3 className="font-bold text-slate-900 dark:text-white">Notifications</h3>
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">Recent</span>
+                    </div>
+                    
+                    <div className="max-h-80 overflow-y-auto">
+                      {notifications.length === 0 ? (
+                        <div className="p-6 text-center text-slate-500 text-sm">No new notifications.</div>
+                      ) : (
+                        notifications.map((notif, i) => (
+                          <div key={i} className="p-4 border-b border-slate-50 dark:border-slate-800/50 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors cursor-pointer flex gap-3">
+                            <div className="mt-0.5 shrink-0">{getIconForSeverity(notif.severity)}</div>
+                            <div>
+                              <p className="text-sm font-medium text-slate-900 dark:text-white leading-snug">{notif.action}</p>
+                              <p className="text-xs text-slate-500 mt-1">{new Date(notif.timestamp).toLocaleString()}</p>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                    
+                    <div className="p-3 bg-slate-50 dark:bg-slate-950/50 text-center border-t border-slate-100 dark:border-slate-800">
+                      <button 
+                        onClick={() => { setShowNotifications(false); navigate('/admin/audit-logs'); }} 
+                        className="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline"
+                      >
+                        View All Logs
+                      </button>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+            
             <div className="h-6 w-px bg-slate-200 dark:bg-slate-800"></div>
             
             {/* PROFILE DROPDOWN */}
