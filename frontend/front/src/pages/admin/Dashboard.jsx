@@ -4,13 +4,34 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { DollarSign, Users, Activity, AlertTriangle, RefreshCw, Server, Database, Cloud } from 'lucide-react';
 import StatsCard from '../../components/admin/StatsCard';
 import toast from 'react-hot-toast';
+import { API } from "../../config/api";
+
+const BASE_URL = API.BASE_API;
 
 const AdminDashboard = () => {
   const [stats, setStats] = useState({ revenue: 0, users: 0, pending: 0, health: 99.9 });
   const [chartData, setChartData] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [dateRange, setDateRange] = useState('7d');
+  const [dateRange, setDateRange] = useState('allTime');
   const [lastRefreshed, setLastRefreshed] = useState(new Date());
+
+  const getDateRangeBounds = (range) => {
+    const end = new Date();
+    let start = new Date();
+    switch(range) {
+      case '7d': start.setDate(end.getDate() - 6); break; 
+      case '30d': start.setDate(end.getDate() - 29); break;
+      case 'thisMonth': start = new Date(end.getFullYear(), end.getMonth(), 1); break;
+      case 'lastMonth': 
+        start = new Date(end.getFullYear(), end.getMonth() - 1, 1); 
+        end.setDate(0); 
+        break;
+      case 'thisYear': start = new Date(end.getFullYear(), 0, 1); break;
+      case 'allTime': start = new Date(2000, 0, 1); break; 
+      default: start.setDate(end.getDate() - 7);
+    }
+    return { start, end };
+  };
 
   const refreshDashboardData = async (silent = false) => {
     if (!silent) setIsLoading(true);
@@ -18,32 +39,82 @@ const AdminDashboard = () => {
       const token = localStorage.getItem('token');
       const headers = { 'Authorization': `Bearer ${token}` };
       
-      const [statsRes, apptRes] = await Promise.all([
-        fetch('http://localhost:8082/api/admin/dashboard/stats', { headers }),
-        fetch('http://localhost:8082/api/admin/appointments', { headers })
+      const [statsRes, apptRes, orderRes] = await Promise.all([
+        fetch(`${BASE_URL}/admin/dashboard/stats`, { headers }),
+        fetch(`${BASE_URL}/admin/appointments`, { headers }),
+        fetch(`${BASE_URL}/orders/admin/all`, { headers }).catch(() => ({ ok: false }))
       ]);
 
-      if (statsRes.ok && apptRes.ok) {
-        const statsData = await statsRes.json();
-        const appts = await apptRes.json();
+      let allRevenueEvents = [];
 
+      if (apptRes.ok) {
+        const appts = await apptRes.json();
+        appts.forEach(a => {
+           if (a.paymentStatus === 'PAID') {
+             allRevenueEvents.push({ date: new Date(a.appointmentDate), amount: a.amountPaid || 0 });
+           }
+        });
+      }
+
+      if (orderRes && orderRes.ok) {
+        const orders = await orderRes.json();
+        orders.forEach(o => {
+          if (o.status !== 'CANCELLED') {
+            allRevenueEvents.push({ date: new Date(o.orderDate), amount: o.totalAmount || 0 });
+          }
+        });
+      }
+
+      // ✅ FIX: Filter events FIRST, then sum them up!
+      const { start, end } = getDateRangeBounds(dateRange);
+      const filteredEvents = allRevenueEvents.filter(e => e.date >= start && e.date <= end);
+      const filteredTotalRevenue = filteredEvents.reduce((sum, event) => sum + event.amount, 0);
+
+      if (statsRes.ok) {
+        const statsData = await statsRes.json();
         setStats({
-          revenue: statsData.totalRevenue || 0,
+          revenue: filteredTotalRevenue, 
           users: (statsData.totalUsers || 0) + (statsData.totalDoctors || 0),
           pending: statsData.pendingApprovals || 0,
           health: 99.9
         });
-
-        const monthly = {};
-        appts.forEach(a => {
-           if (a.paymentStatus !== 'PAID') return;
-           const monthName = new Date(a.appointmentDate).toLocaleString('default', { month: 'short' });
-           if (!monthly[monthName]) monthly[monthName] = { name: monthName, revenue: 0 };
-           monthly[monthName].revenue += (a.amountPaid || 0);
-        });
-        setChartData(Object.values(monthly).length > 0 ? Object.values(monthly) : [{name: 'Current', revenue: 0}]);
-        setLastRefreshed(new Date());
       }
+
+      const isDayView = ['7d', '30d', 'thisMonth', 'lastMonth'].includes(dateRange);
+      const groupedData = {};
+
+      if (isDayView) {
+        for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+          const key = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+          groupedData[key] = { name: key, revenue: 0, sortDate: new Date(d) };
+        }
+      } else {
+        let monthStart = new Date(start);
+        if (dateRange === 'allTime') {
+           const earliestYear = allRevenueEvents.length > 0 
+              ? Math.min(...allRevenueEvents.map(e => e.date.getFullYear()))
+              : end.getFullYear();
+           monthStart = new Date(earliestYear, 0, 1);
+        }
+        for (let m = new Date(monthStart); m <= end; m.setMonth(m.getMonth() + 1)) {
+          const key = m.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+          groupedData[key] = { name: key, revenue: 0, sortDate: new Date(m.getFullYear(), m.getMonth(), 1) };
+        }
+      }
+
+      filteredEvents.forEach(e => {
+         const key = isDayView 
+            ? e.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+            : e.date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+            
+         if (groupedData[key]) groupedData[key].revenue += e.amount;
+      });
+
+      const finalChartData = Object.values(groupedData).sort((a, b) => a.sortDate - b.sortDate);
+
+      setChartData(finalChartData.length > 0 ? finalChartData : [{ name: 'No Data', revenue: 0 }]);
+      setLastRefreshed(new Date());
+      
     } catch (e) { 
       toast.error("Telemetry sync failed."); 
     } finally { 
@@ -59,6 +130,7 @@ const AdminDashboard = () => {
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-8 max-w-[1600px] mx-auto pb-12">
+      
       <div className="flex flex-col md:flex-row justify-between md:items-end gap-4">
         <div>
           <h1 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">Executive Dashboard</h1>
@@ -67,10 +139,21 @@ const AdminDashboard = () => {
           </p>
         </div>
         <div className="flex gap-3">
-          <select value={dateRange} onChange={(e) => setDateRange(e.target.value)} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-lg px-4 py-2 outline-none focus:border-indigo-500 shadow-sm cursor-pointer">
-            <option value="24h">Last 24 Hours</option><option value="7d">Last 7 Days</option><option value="30d">Last 30 Days</option>
+          <select 
+            value={dateRange} 
+            onChange={(e) => setDateRange(e.target.value)} 
+            className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-lg px-4 py-2 outline-none focus:border-indigo-500 shadow-sm cursor-pointer font-medium"
+          >
+            <option value="7d">Last 7 Days</option>
+            <option value="30d">Last 30 Days</option>
+            <option value="thisMonth">This Month</option>
+            <option value="lastMonth">Last Month</option>
+            <option value="thisYear">This Year</option>
+            <option value="allTime">All Time</option>
           </select>
-          <button onClick={() => refreshDashboardData(false)} className="p-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-lg transition-colors shadow-sm"><RefreshCw size={20} className={isLoading ? "animate-spin" : ""} /></button>
+          <button onClick={() => refreshDashboardData(false)} className="p-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-lg transition-colors shadow-sm">
+            <RefreshCw size={20} className={isLoading ? "animate-spin" : ""} />
+          </button>
         </div>
       </div>
 
@@ -82,17 +165,29 @@ const AdminDashboard = () => {
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+        
         <div className="xl:col-span-2 bg-white dark:bg-slate-900/50 backdrop-blur-md border border-slate-200 dark:border-slate-800/60 rounded-2xl p-6 shadow-sm dark:shadow-xl">
-          <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-6 flex items-center gap-2"><Activity size={18} className="text-indigo-500 dark:text-indigo-400"/> Revenue Velocity</h3>
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2"><Activity size={18} className="text-indigo-500 dark:text-indigo-400"/> Revenue Velocity</h3>
+            <span className="text-xs font-bold text-slate-500 bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-full uppercase tracking-wider">
+              {['7d', '30d', 'thisMonth', 'lastMonth'].includes(dateRange) ? 'Daily view' : 'Monthly view'}
+            </span>
+          </div>
+
           {isLoading ? <div className="h-[300px] bg-slate-100 dark:bg-slate-800/30 animate-pulse rounded-xl"></div> : (
-            <div className="h-[300px] w-full">
+            <div style={{ width: '100%', height: '300px', minWidth: 0 }}>
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={chartData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
+                <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                   <defs><linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#6366f1" stopOpacity={0.4}/><stop offset="95%" stopColor="#6366f1" stopOpacity={0}/></linearGradient></defs>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#94a3b8" opacity={0.2} />
-                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12}} dy={10} />
-                  <YAxis axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12}} />
-                  <Tooltip cursor={{stroke: '#6366f1', strokeWidth: 1, strokeDasharray: '3 3'}} contentStyle={{ backgroundColor: 'var(--tw-prose-body)', borderColor: '#e2e8f0', borderRadius: '12px', color: '#0f172a' }} itemStyle={{color: '#6366f1', fontWeight: 'bold'}} />
+                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12}} dy={10} minTickGap={20} />
+                  <YAxis axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12}} tickFormatter={(value) => `₹${value}`} />
+                  <Tooltip 
+                    cursor={{stroke: '#6366f1', strokeWidth: 1, strokeDasharray: '3 3'}} 
+                    contentStyle={{ backgroundColor: 'var(--tw-prose-body)', borderColor: '#e2e8f0', borderRadius: '12px', color: '#0f172a' }} 
+                    itemStyle={{color: '#6366f1', fontWeight: 'bold'}}
+                    formatter={(value) => [`₹${value.toLocaleString()}`, 'Revenue']}
+                  />
                   <Area type="monotone" dataKey="revenue" stroke="#6366f1" strokeWidth={3} fillOpacity={1} fill="url(#colorRev)" animationDuration={1000} />
                 </AreaChart>
               </ResponsiveContainer>
