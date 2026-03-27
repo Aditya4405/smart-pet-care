@@ -3,6 +3,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ShieldAlert, AlertTriangle, CheckCircle, Ban, Search } from 'lucide-react';
 import ConfirmModal from '../../components/shared/ConfirmModal';
 import toast from 'react-hot-toast';
+import { API } from "../../config/api";
+
+const BASE_API = API.BASE_API;
 
 const AdminModeration = () => {
   const [reports, setReports] = useState([]);
@@ -12,7 +15,7 @@ const AdminModeration = () => {
 
   const fetchReports = async () => {
     try {
-      const res = await fetch('http://localhost:8082/api/admin/moderation/reports', {
+      const res = await fetch(`${BASE_API}/admin/moderation/reports`, {
         headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
       });
       if (res.ok) setReports(await res.json());
@@ -29,7 +32,7 @@ const AdminModeration = () => {
       
       if (confirmModal.action === 'BAN_USER') {
         // Step 1: Fetch active vets so we can match the reported name to their actual database ID
-        const vetsRes = await fetch('http://localhost:8082/api/users/approved-vets', {
+        const vetsRes = await fetch(`${BASE_API}/users/approved-vets`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         const activeVets = await vetsRes.json();
@@ -44,14 +47,14 @@ const AdminModeration = () => {
                 
                 if (matchedVet) {
                     // Send the Ban Request to the User Controller!
-                    await fetch(`http://localhost:8082/api/users/${matchedVet.id}/status?status=SUSPENDED`, {
+                    await fetch(`${BASE_API}/users/${matchedVet.id}/status?status=SUSPENDED`, {
                         method: 'PUT',
                         headers: { 'Authorization': `Bearer ${token}` }
                     });
                 }
 
                 // Delete the report from the moderation queue after processing
-                await fetch(`http://localhost:8082/api/admin/moderation/reports/${id}`, {
+                await fetch(`${BASE_API}/admin/moderation/reports/${id}`, {
                     method: 'DELETE',
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
@@ -60,7 +63,7 @@ const AdminModeration = () => {
       } else {
         // Just Dismiss the reports (Delete them without banning)
         await Promise.all(selectedIds.map(id => 
-          fetch(`http://localhost:8082/api/admin/moderation/reports/${id}`, {
+          fetch(`${BASE_API}/admin/moderation/reports/${id}`, {
               method: 'DELETE',
               headers: { 'Authorization': `Bearer ${token}` }
           })
