@@ -1,7 +1,7 @@
 import React from 'react';
 import { Outlet } from 'react-router-dom';
 import UserSidebar from '../components/user/UserSidebar';
-import Topbar from '../components/admin/Topbar'; // Reusing the topbar for consistency
+import Topbar from '../components/admin/Topbar'; 
 
 const UserLayout = () => {
   return (
