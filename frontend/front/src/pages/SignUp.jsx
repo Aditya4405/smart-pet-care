@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import PublicNavbar from '../components/PublicNavbar';
 import { ShieldCheck, User, Users, Eye, EyeOff } from 'lucide-react';
+import { API } from "../config/api";
 import toast from 'react-hot-toast';
 
 const SignUp = () => {
@@ -87,7 +88,7 @@ const SignUp = () => {
 
     setIsLoading(true);
     const endpoint = isLogin ? '/login' : '/register';
-    const url = `http://localhost:8082/api/users${endpoint}`;
+    const url = `${API.BASE_API}/users${endpoint}`;
 
     try {
         let body;
@@ -220,7 +221,32 @@ const SignUp = () => {
             {isLogin ? (
               <>
                 <InputField label="Email Address" name="email" type="email" value={formData.email} onChange={handleChange} placeholder={isAdminLogin ? "Enter Admin Email " : "Enter your email"} error={errors.email} />
-                <InputField label="Password" name="password" type={showPassword ? "text" : "password"} value={formData.password} onChange={handleChange} placeholder="••••••••" error={errors.password} endAdornment={<PasswordToggleBtn isVisible={showPassword} onToggle={() => setShowPassword(!showPassword)} />} />
+                <InputField 
+  label="Password" 
+  name="password" 
+  type={showPassword ? "text" : "password"} 
+  value={formData.password} 
+  onChange={handleChange} 
+  placeholder="••••••••" 
+  error={errors.password} 
+  endAdornment={
+    <PasswordToggleBtn 
+      isVisible={showPassword} 
+      onToggle={() => setShowPassword(!showPassword)} 
+    />
+  } 
+/>
+
+{/* 🔐 FORGOT PASSWORD LINK */}
+<div className="flex justify-end mt-1">
+  <button
+    type="button"
+    onClick={() => navigate('/forgot-password')}
+    className="text-xs font-semibold text-teal-500 hover:text-teal-600 hover:underline transition-colors"
+  >
+    Forgot Password?
+  </button>
+</div>
               </>
             ) : (
               <>
