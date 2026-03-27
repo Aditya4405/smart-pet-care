@@ -2,6 +2,9 @@ import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CheckCircle, FileText, X } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { API } from "../../config/api";
+const BASE_API = API.BASE_API;
+const UPLOADS = API.UPLOADS;
 
 const DoctorList = () => {
   const [doctors, setDoctors] = useState([]);
@@ -10,7 +13,7 @@ const DoctorList = () => {
 
   const fetchDoctors = async () => {
     try {
-      const res = await fetch('http://localhost:8082/api/admin/vets', { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }});
+      const res = await fetch(`${BASE_API}/admin/vets`, { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }});
       if (res.ok) {
         const data = await res.json();
         setDoctors(data.filter(vet => vet.status === 'PENDING'));
@@ -23,7 +26,7 @@ const DoctorList = () => {
 
   const handleStatusUpdate = async (id, statusAction) => {
     try {
-      const res = await fetch(`http://localhost:8082/api/admin/users/${id}/status`, {
+      const res = await fetch(`${BASE_API}/admin/users/${id}/status`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
         body: JSON.stringify({ action: statusAction })
@@ -86,7 +89,7 @@ const DoctorList = () => {
                 <button onClick={() => setPreviewDoc(null)} className="text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"><X size={20}/></button>
               </div>
               <div className="flex-1 bg-slate-100 dark:bg-slate-950 p-4 overflow-auto flex justify-center">
-                 <img src={`http://localhost:8082/uploads/${previewDoc}`} alt="Medical License" className="max-w-full rounded border border-slate-200 dark:border-slate-800 object-contain bg-white dark:bg-transparent" onError={(e) => e.target.src="https://via.placeholder.com/600x800.png?text=Document+Not+Found"} />
+                 <img src={`${UPLOADS}/${previewDoc}`} alt="Medical License" className="max-w-full rounded border border-slate-200 dark:border-slate-800 object-contain bg-white dark:bg-transparent" onError={(e) => e.target.src="https://via.placeholder.com/600x800.png?text=Document+Not+Found"} />
               </div>
             </motion.div>
           </>
