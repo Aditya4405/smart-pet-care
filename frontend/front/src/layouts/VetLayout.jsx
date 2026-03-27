@@ -1,6 +1,7 @@
+// src/layouts/VetLayout.jsx
 import React from 'react';
 import { Outlet } from 'react-router-dom';
-import VetTopNav from '../components/vet/VetTopNav'; // Ensure you have this file created
+import VetTopNav from '../components/vet/VetTopNav'; 
 
 const VetLayout = () => {
   return (
@@ -15,8 +16,10 @@ const VetLayout = () => {
       {/* 3. Top Navigation Bar */}
       <VetTopNav />
       
-      {/* 4. Main Content Workspace */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 lg:py-12 animate-in fade-in zoom-in-[0.99] duration-500 ease-out">
+      {/* 4. Main Content Workspace 
+          ✅ CHANGED: Replaced py-10 with pt-24 pb-10 to push content below the fixed navbar 
+      */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-10 lg:pt-28 lg:pb-12 animate-in fade-in zoom-in-[0.99] duration-500 ease-out">
         <Outlet />
       </main>
     </div>
