@@ -1,24 +1,32 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Download, Shield, Server, User, Info, AlertTriangle } from 'lucide-react';
+import { Download, Shield, Server, User, Info, AlertTriangle, RefreshCcw } from 'lucide-react'; // <-- ADDED RefreshCcw
 import toast from 'react-hot-toast';
+import { API } from "../../config/api";
+
 
 const AdminAuditLogs = () => {
   const [logs, setLogs] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
+  // --- MOVED FETCH LOGIC OUTSIDE USEEFFECT SO WE CAN REUSE IT ---
+  const fetchLogs = async () => {
+    setIsLoading(true);
+    try {
+      const res = await fetch(`${API.BASE_API}/admin/audit-logs`, { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }});
+      if (res.ok) {
+        const data = await res.json();
+        // Sort newest logs to the top
+        setLogs(data.sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp)));
+      }
+    } catch (e) { 
+        toast.error("Failed to sync audit logs."); 
+    } finally { 
+        setIsLoading(false); 
+    }
+  };
+
   useEffect(() => {
-    const fetchLogs = async () => {
-      try {
-        const res = await fetch('http://localhost:8082/api/admin/audit-logs', { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }});
-        if (res.ok) {
-          const data = await res.json();
-          // Sort newest logs to the top
-          setLogs(data.sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp)));
-        }
-      } catch (e) { toast.error("Failed to sync audit logs."); }
-      finally { setIsLoading(false); }
-    };
     fetchLogs();
   }, []);
 
@@ -32,9 +40,30 @@ const AdminAuditLogs = () => {
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6 max-w-[1200px] mx-auto pb-12">
-      <div className="flex justify-between items-end">
-        <div><h1 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">System Audit Logs</h1><p className="text-slate-500 dark:text-slate-400 mt-1">Immutable security and event timeline.</p></div>
-        <button onClick={exportLogs} className="px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-white rounded-lg flex items-center gap-2 shadow-sm"><Download size={16}/> Export CSV</button>
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
+        <div>
+            <h1 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">System Audit Logs</h1>
+            <p className="text-slate-500 dark:text-slate-400 mt-1">Immutable security and event timeline.</p>
+        </div>
+        
+        <div className="flex items-center gap-3">
+            {/* --- NEW REFRESH BUTTON --- */}
+            <button 
+                onClick={fetchLogs} 
+                className="px-4 py-2 bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-200 dark:border-indigo-500/20 hover:bg-indigo-100 dark:hover:bg-indigo-500/30 text-indigo-700 dark:text-indigo-400 rounded-lg flex items-center gap-2 shadow-sm font-medium transition-colors"
+            >
+                <RefreshCcw size={16} className={isLoading ? "animate-spin" : ""} /> 
+                Refresh Logs
+            </button>
+            
+            <button 
+                onClick={exportLogs} 
+                className="px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-white rounded-lg flex items-center gap-2 shadow-sm transition-colors font-medium"
+            >
+                <Download size={16}/> 
+                Export CSV
+            </button>
+        </div>
       </div>
 
       <div className="bg-white dark:bg-slate-900/60 backdrop-blur-xl border border-slate-200 dark:border-slate-800/80 rounded-2xl shadow-sm dark:shadow-xl overflow-hidden p-6 min-h-[400px]">
