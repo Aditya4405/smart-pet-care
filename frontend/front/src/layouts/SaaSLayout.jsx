@@ -1,7 +1,6 @@
 // src/layouts/SaaSLayout.jsx
 import React from 'react';
 import { Outlet } from 'react-router-dom';
-// 1. CHANGE THIS IMPORT
 import OwnerTopNav from '../components/owner/OwnerTopNav'; 
 
 const SaaSLayout = () => {
@@ -14,11 +13,13 @@ const SaaSLayout = () => {
       {/* 2. Subtle Radial Highlight */}
       <div className="fixed inset-0 z-[-1] bg-[radial-gradient(circle_at_20%_0%,rgba(56,189,248,0.08),transparent_40%)] dark:bg-[radial-gradient(circle_at_20%_0%,rgba(56,189,248,0.15),transparent_40%)] pointer-events-none" />
 
-      {/* 2. USE THE NEW COMPONENT HERE */}
+      {/* 3. Navbar */}
       <OwnerTopNav />
       
-      {/* Main Content Workspace */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 lg:py-12 animate-in fade-in zoom-in-[0.99] duration-500 ease-out">
+      {/* 4. Main Content Workspace 
+          ✅ CHANGED: Replaced py-10 with pt-24 pb-10 to push content below the fixed navbar 
+      */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-10 lg:pt-28 lg:pb-12 animate-in fade-in zoom-in-[0.99] duration-500 ease-out">
         <Outlet />
       </main>
     </div>
