@@ -3,31 +3,99 @@ import { motion } from 'framer-motion';
 import { Shield, Lock, Globe, AlertTriangle, Database, Save, Plus, Trash2 } from 'lucide-react';
 import ConfirmModal from '../../components/shared/ConfirmModal';
 import toast from 'react-hot-toast';
+import { API } from '../../config/api';
 
 const AdminSettings = () => {
+  const currentUser = JSON.parse(localStorage.getItem('user')) || { id: 1 };
+  const token = localStorage.getItem('token');
+
   const [confirmModal, setConfirmModal] = useState(false);
   const [healthScore, setHealthScore] = useState(100);
+  const [isLoading, setIsLoading] = useState(true);
 
+  // We group ALL security settings (including IP Whitelist) into one state object 
+  // so it perfectly matches the Spring Boot UserSettings entity payload.
   const [security, setSecurity] = useState({
-    enforce2FA: true, passwordPolicyLevel: 'Enterprise', sessionTimeoutMinutes: 15, maxLoginAttempts: 3, geoRestrictionEnabled: true,
-    suspiciousLoginAlerts: true, bruteForceProtection: true, apiRateLimitPerMinute: 60, dataRetentionDays: 365, gdprMode: true, auditLogLock: true
+    enforce2FA: true, 
+    passwordPolicyLevel: 'Enterprise', 
+    sessionTimeoutMinutes: 15, 
+    geoRestrictionEnabled: true,
+    suspiciousLoginAlerts: true, 
+    bruteForceProtection: true, 
+    gdprMode: true, 
+    auditLogLock: true,
+    ipWhitelist: []
   });
-  const [ipWhitelist, setIpWhitelist] = useState(['192.168.1.1', '10.0.0.5']);
+  
   const [newIp, setNewIp] = useState('');
 
+  // 1. FETCH ACTUAL SETTINGS ON LOAD
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const res = await fetch(`${API.BASE_API}/settings/${currentUser.id}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          // Merge the backend data into our local state
+          setSecurity(prev => ({ ...prev, ...data }));
+        }
+      } catch (error) {
+        toast.error("Failed to load security policies.");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchSettings();
+  }, [currentUser.id, token]);
+
+  // 2. CALCULATE HEALTH SCORE DYNAMICALLY
   useEffect(() => {
     let score = 0;
     if (security.enforce2FA) score += 20;
-    if (security.passwordPolicyLevel === 'Enterprise') score += 20; else if (security.passwordPolicyLevel === 'Strong') score += 10;
+    if (security.passwordPolicyLevel === 'Enterprise') score += 20; 
+    else if (security.passwordPolicyLevel === 'Strong') score += 10;
     if (security.bruteForceProtection) score += 20;
     if (security.suspiciousLoginAlerts) score += 20;
-    if (security.apiRateLimitPerMinute <= 100) score += 20;
+    if (security.auditLogLock) score += 20;
     setHealthScore(score);
   }, [security]);
 
-  const addIp = () => { if(newIp && !ipWhitelist.includes(newIp)) { setIpWhitelist([...ipWhitelist, newIp]); setNewIp(''); } };
-  const removeIp = (ip) => setIpWhitelist(ipWhitelist.filter(i => i !== ip));
-  const handleSaveSecuritySettings = () => toast.success("Enterprise security policies deployed globally.");
+  // 3. IP WHITELIST HANDLERS
+  const addIp = () => { 
+    if (newIp && !security.ipWhitelist.includes(newIp)) { 
+      setSecurity({ ...security, ipWhitelist: [...security.ipWhitelist, newIp] }); 
+      setNewIp(''); 
+    } 
+  };
+  const removeIp = (ip) => {
+    setSecurity({ ...security, ipWhitelist: security.ipWhitelist.filter(i => i !== ip) });
+  };
+
+  // 4. DEPLOY TO BACKEND
+  const handleSaveSecuritySettings = async () => {
+    const loadingToast = toast.loading("Deploying enterprise policies...");
+    try {
+      const res = await fetch(`${API.BASE_API}/settings/${currentUser.id}`, {
+        method: 'PUT',
+        headers: { 
+          'Authorization': `Bearer ${token}`, 
+          'Content-Type': 'application/json' 
+        },
+        body: JSON.stringify(security)
+      });
+
+      if (res.ok) {
+        toast.success("Enterprise security policies deployed globally.", { id: loadingToast });
+        setConfirmModal(false);
+      } else {
+        toast.error("Failed to deploy policies.", { id: loadingToast });
+      }
+    } catch (e) {
+      toast.error("Network Error.", { id: loadingToast });
+    }
+  };
 
   const Toggle = ({ label, desc, stateKey }) => (
     <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-950/50 rounded-xl border border-slate-200 dark:border-slate-800/50 hover:border-slate-300 dark:hover:border-slate-700 transition-colors">
@@ -37,6 +105,10 @@ const AdminSettings = () => {
       </button>
     </div>
   );
+
+  if (isLoading) {
+    return <div className="p-20 text-center animate-pulse text-slate-500">Loading security protocols...</div>;
+  }
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-8 max-w-[1200px] mx-auto pb-24">
@@ -59,7 +131,9 @@ const AdminSettings = () => {
           <div className="p-4 bg-slate-50 dark:bg-slate-950/50 rounded-xl border border-slate-200 dark:border-slate-800/50">
             <label className="font-bold text-slate-900 dark:text-slate-200 text-sm block mb-2">Password Policy Level</label>
             <select value={security.passwordPolicyLevel} onChange={e=>setSecurity({...security, passwordPolicyLevel: e.target.value})} className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white rounded-lg px-3 py-2 outline-none focus:border-indigo-500 text-sm font-medium cursor-pointer">
-              <option value="Basic">Basic (8 chars, 1 number)</option><option value="Strong">Strong (12 chars, Special, Capital)</option><option value="Enterprise">Enterprise (16 chars, No dictionary words)</option>
+              <option value="Basic">Basic (8 chars, 1 number)</option>
+              <option value="Strong">Strong (12 chars, Special, Capital)</option>
+              <option value="Enterprise">Enterprise (16 chars, No dictionary words)</option>
             </select>
           </div>
           <div className="flex gap-4">
@@ -81,7 +155,7 @@ const AdminSettings = () => {
               <button onClick={addIp} className="px-3 bg-indigo-600 hover:bg-indigo-700 rounded-lg text-white transition-colors"><Plus size={16}/></button>
             </div>
             <div className="flex-1 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
-              {ipWhitelist.map(ip => (
+              {security.ipWhitelist.map(ip => (
                 <div key={ip} className="flex justify-between items-center p-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg group">
                   <span className="text-sm font-mono text-emerald-600 dark:text-emerald-400">{ip}</span>
                   <button onClick={() => removeIp(ip)} className="text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 size={14}/></button>
@@ -110,8 +184,17 @@ const AdminSettings = () => {
         </button>
       </div>
 
-      <ConfirmModal isOpen={confirmModal} onClose={() => setConfirmModal(false)} onConfirm={handleSaveSecuritySettings} title="Deploy Security Policies?" message="Warning: Changing IP Whitelists or MFA requirements may instantly log out users who do not meet the new compliance standards." confirmText="Acknowledge & Deploy" isDanger={true} />
+      <ConfirmModal 
+        isOpen={confirmModal} 
+        onClose={() => setConfirmModal(false)} 
+        onConfirm={handleSaveSecuritySettings} 
+        title="Deploy Security Policies?" 
+        message="Warning: Changing IP Whitelists or MFA requirements may instantly log out users who do not meet the new compliance standards." 
+        confirmText="Acknowledge & Deploy" 
+        isDanger={true} 
+      />
     </motion.div>
   );
 };
+
 export default AdminSettings;
