@@ -5,6 +5,9 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
+import { API } from '../../config/api';
+
+const API_BASE = API.BASE_API;
 
 const FindVet = () => {
   const navigate = useNavigate();
@@ -33,7 +36,7 @@ const FindVet = () => {
     try {
       const token = localStorage.getItem('token');
       
-      const response = await fetch('http://localhost:8082/api/users/approved-vets', {
+      const response = await fetch(`${API_BASE}/users/approved-vets`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
 
@@ -50,7 +53,8 @@ const FindVet = () => {
             reviews: Math.floor(Math.random() * 50) + 10, 
             location: vet.location || "Location not provided", 
             image: `https://ui-avatars.com/api/?name=${vet.firstName}+${vet.lastName}&background=10b981&color=fff&size=256`,
-            available: true,
+            // ✅ FIX 1: Properly map the availability status from the backend
+            available: vet.isAvailable !== false, 
             originalData: vet
         }));
 
@@ -81,7 +85,7 @@ const FindVet = () => {
               severity: reportData.severity
           };
 
-          const response = await fetch('http://localhost:8082/api/actions/moderation/report', {
+          const response = await fetch(`${API_BASE}/actions/moderation/report`, {
               method: 'POST',
               headers: { 
                   'Content-Type': 'application/json',
@@ -109,12 +113,19 @@ const FindVet = () => {
       setReportModalOpen(true);
   };
 
-  const filteredDoctors = doctors.filter(doc => 
-    (selectedCategory === 'All' || doc.specialty.toLowerCase() === selectedCategory.toLowerCase()) &&
-    (doc.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-     doc.clinic.toLowerCase().includes(searchTerm.toLowerCase()) || 
-     doc.location.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
+  // ✅ FIX 2: Added `doc.specialty` to the search conditions!
+  const filteredDoctors = doctors.filter(doc => {
+    const matchesCategory = selectedCategory === 'All' || doc.specialty.toLowerCase() === selectedCategory.toLowerCase();
+    const searchLower = searchTerm.toLowerCase();
+    
+    const matchesSearch = 
+        doc.name.toLowerCase().includes(searchLower) || 
+        doc.clinic.toLowerCase().includes(searchLower) || 
+        doc.location.toLowerCase().includes(searchLower) ||
+        doc.specialty.toLowerCase().includes(searchLower); // <-- This makes "vaccination" work!
+
+    return matchesCategory && matchesSearch;
+  });
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500 pb-12">
@@ -127,9 +138,6 @@ const FindVet = () => {
             Book appointments with top-rated doctors near you.
           </p>
         </div>
-        <button className="hidden md:flex items-center gap-2 text-emerald-600 font-bold hover:bg-emerald-50 px-4 py-2 rounded-xl transition-colors">
-            <MapPin className="w-4 h-4" /> View Map
-        </button>
       </div>
 
       {/* SEARCH & FILTER BAR */}
@@ -170,26 +178,33 @@ const FindVet = () => {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
           {filteredDoctors.map((doc) => (
-              <div key={doc.id} className="group relative bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-5 hover:shadow-xl hover:border-emerald-500/30 transition-all duration-300 flex flex-col">
+              <div key={doc.id} className={`group relative bg-white dark:bg-slate-800 rounded-2xl border p-5 transition-all duration-300 flex flex-col ${doc.available ? 'border-slate-200 dark:border-slate-700 hover:shadow-xl hover:border-emerald-500/30' : 'border-slate-200 dark:border-slate-700 opacity-80'}`}>
                   
+                  {/* --- OFFLINE BADGE --- */}
+                  {!doc.available && (
+                      <div className="absolute top-4 left-4 bg-red-500/10 text-red-500 border border-red-500/20 px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider z-10">
+                          Currently Offline
+                      </div>
+                  )}
+
                   {/* --- REPORT FLAG BUTTON --- */}
                   <button 
                       onClick={() => openReportModal(doc)}
-                      className="absolute top-4 right-4 p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/20 rounded-full transition-all opacity-0 group-hover:opacity-100"
+                      className="absolute top-4 right-4 p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/20 rounded-full transition-all opacity-0 group-hover:opacity-100 z-10"
                       title="Report Profile"
                   >
                       <Flag className="w-4 h-4" />
                   </button>
 
                   {/* Top Section: Image & Info */}
-                  <div className="flex gap-4">
+                  <div className={`flex gap-4 ${!doc.available ? 'grayscale-[30%]' : ''}`}>
                       <div className="relative w-20 h-20 shrink-0">
                           <img src={doc.image} alt={doc.name} className="w-full h-full object-cover rounded-2xl shadow-sm bg-emerald-50" />
                           <div className="absolute -bottom-2 -right-2 bg-white dark:bg-slate-800 p-1 rounded-full">
                               <ShieldCheck className="w-5 h-5 text-blue-500 fill-blue-50" />
                           </div>
                       </div>
-                      <div className="pr-6">
+                      <div className="pr-6 pt-1">
                           <h3 className="font-bold text-lg text-slate-900 dark:text-white leading-tight">{doc.name}</h3>
                           <p className="text-sm text-emerald-600 font-bold mb-1">{doc.specialty} Specialist</p>
                           <p className="text-xs text-slate-500 flex items-center gap-1">
@@ -204,7 +219,7 @@ const FindVet = () => {
                   </div>
 
                   {/* Stats Row */}
-                  <div className="grid grid-cols-2 gap-3 mt-6 mb-6">
+                  <div className={`grid grid-cols-2 gap-3 mt-6 mb-6 ${!doc.available ? 'opacity-70' : ''}`}>
                       <div className="bg-slate-50 dark:bg-slate-700/50 p-3 rounded-xl">
                           <p className="text-xs text-slate-400 font-bold uppercase">Experience</p>
                           <p className="text-sm font-bold text-slate-900 dark:text-white">{doc.exp}</p>
@@ -224,14 +239,14 @@ const FindVet = () => {
                           disabled={!doc.available}
                           className={`w-full py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-all ${
                               doc.available 
-                              ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 hover:opacity-90 shadow-lg' 
-                              : 'bg-slate-100 dark:bg-slate-700 text-slate-400 cursor-not-allowed'
+                              ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 hover:opacity-90 shadow-lg active:scale-[0.98]' 
+                              : 'bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-400 cursor-not-allowed'
                           }`}
                       >
                           {doc.available ? (
                               <>Book Appointment <Calendar className="w-4 h-4" /></>
                           ) : (
-                              <>Not Available Today <Clock className="w-4 h-4" /></>
+                              <>Not Available <Clock className="w-4 h-4" /></>
                           )}
                       </button>
                   </div>
