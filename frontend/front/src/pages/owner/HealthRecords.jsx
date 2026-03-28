@@ -2,307 +2,377 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { 
   Activity, Syringe, FileText, Edit, Calendar, 
-  CheckCircle, AlertTriangle, X, Save, Clock, Camera 
+  CheckCircle, AlertTriangle, X, Save, Clock, Camera, 
+  ChevronDown, Filter, Dog, Cat, PawPrint, History,
+  TrendingUp, Scale, Check, AlertCircle
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { API } from '../../config/api';
+
+const API_BASE = API.BASE_API;
+const BASE_URL = API.BASE_URL;
 
 const HealthRecords = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { id } = useParams(); // If you navigate via /owner/pets/:id
+  const { id } = useParams(); 
   const fileInputRef = useRef(null);
+  const dropdownRef = useRef(null);
   
   const [pet, setPet] = useState(location.state?.pet || null);
   const [medicalHistory, setMedicalHistory] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [filterType, setFilterType] = useState('all'); 
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
   
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState(null);
 
-  // Mock Vaccination Schedule (Keep this mock for now unless you have a table for it)
-  const vaccinations = [
-    { id: 1, name: 'Rabies', date: '2023-10-15', status: 'Completed', nextDue: '2024-10-15' },
-    { id: 2, name: 'Parvovirus', date: '2023-05-10', status: 'Completed', nextDue: '2024-05-10' },
-    { id: 3, name: 'Bordetella', date: null, status: 'Due Now', nextDue: 'Immediate' },
+  const filterOptions = [
+    { id: 'all', label: 'All Records' },
+    { id: 'thisMonth', label: 'This Month' },
+    { id: 'lastMonth', label: 'Last Month' },
+    { id: 'lastYear', label: 'Last Year' }
   ];
 
-  // --- FETCH REAL PET & MEDICAL HISTORY ---
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const token = localStorage.getItem('token');
-        const userStr = localStorage.getItem('user');
-        
-        if (!token || !userStr) {
-            navigate('/login');
-            return;
-        }
+  // --- AGE CALCULATION ---
+  const calculateAge = (dob) => {
+    if (!dob) return "N/A";
+    const birthDate = new Date(dob);
+    const today = new Date();
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const m = today.getMonth() - birthDate.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) age--;
+    return age <= 0 ? "Juvenile" : `${age} Years`;
+  };
 
-        const user = JSON.parse(userStr);
-        const petIdToFetch = id || pet?.id;
+  // --- 7-DAY VACCINE REMINDER ---
+  const getVaccineStatus = (vaxDate) => {
+    if (!vaxDate) return { label: 'Due', color: 'text-amber-500', icon: <Clock size={14}/> };
+    const nextDue = new Date(vaxDate);
+    nextDue.setFullYear(nextDue.getFullYear() + 1); 
+    const today = new Date();
+    const diffDays = Math.ceil((nextDue - today) / (1000 * 60 * 60 * 24));
 
-        if (!petIdToFetch) {
-            toast.error("No pet selected.");
-            navigate('/owner/pets');
-            return;
-        }
+    if (diffDays < 0) return { label: 'Overdue', color: 'text-red-500', icon: <AlertTriangle size={14}/> };
+    if (diffDays <= 7) return { label: 'Due Soon', color: 'text-orange-500', icon: <Clock size={14}/> };
+    return { label: 'Up to Date', color: 'text-emerald-500', icon: <CheckCircle size={14}/> };
+  };
 
-        // 1. Fetch Pet Details (to get latest weight, age, etc.)
-        const petRes = await fetch(`http://localhost:8082/api/pets/${petIdToFetch}`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
+  const fetchData = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const user = JSON.parse(localStorage.getItem('user'));
+      const petIdToFetch = id || pet?.id;
 
-        if (petRes.ok) {
-            const petData = await petRes.json();
-            // Format image
-            petData.image = petData.imageUrl 
-                ? `http://localhost:8082/uploads/${petData.imageUrl}` 
-                : 'https://images.unsplash.com/photo-1552053831-71594a27632d?auto=format&fit=crop&w=300&q=80';
-            
-            // Format mock fields if empty
-            petData.age = petData.age || 'Unknown';
-            petData.weight = petData.weight ? `${petData.weight} kg` : 'Unknown';
-            petData.sex = petData.gender || 'Unknown';
+      // Fetch Pet Data
+      const petRes = await fetch(`${API_BASE}/pets/${petIdToFetch}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+      });
 
-            setPet(petData);
-            setEditForm(petData);
-        }
-
-        // 2. Fetch Owner's Appointments to build Medical History
-        const apptsRes = await fetch(`http://localhost:8082/api/appointments/owner/${user.id}`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-
-        if (apptsRes.ok) {
-            const apptsData = await apptsRes.json();
-            
-            // Filter appointments for THIS specific pet
-            const thisPetsAppts = apptsData.filter(a => a.pet.id === parseInt(petIdToFetch));
-            
-            // Sort newest first
-            thisPetsAppts.sort((a, b) => b.id - a.id);
-            setMedicalHistory(thisPetsAppts);
-        }
-
-      } catch (error) {
-        console.error("Error fetching data:", error);
-        toast.error("Failed to load records.");
-      } finally {
-        setIsLoading(false);
+      if (petRes.ok) {
+          const data = await petRes.json();
+          // Photo path mapping
+          data.displayImage = data.imageUrl 
+               ? `${BASE_URL}/uploads/${data.imageUrl}`
+              : 'https://images.unsplash.com/photo-1543466835-00a7907e9de1?q=80&w=300';
+          setPet(data);
+          setEditForm(data);
       }
-    };
 
-    fetchData();
-  }, [id, navigate]); // Removed 'pet' from dependency to avoid infinite loop
+      // Fetch Appointments
+      const apptsRes = await fetch(`${API_BASE}/appointments/owner/${user.id}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+      });
 
-  // Handlers
-  const handleImageChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      const imageUrl = URL.createObjectURL(file); 
-      setPet({ ...pet, image: imageUrl });
-      setEditForm({ ...editForm, image: imageUrl });
-      // TODO: Wire up actual PUT request for image later
-      toast.success("Image updated locally. Remember to save.");
+      if (apptsRes.ok) {
+          const apptsData = await apptsRes.json();
+          const filtered = apptsData.filter(a => a.pet.id === parseInt(petIdToFetch));
+          setMedicalHistory(filtered.sort((a, b) => new Date(b.appointmentDate) - new Date(a.appointmentDate)));
+      }
+    } catch (e) { 
+        console.error(e); 
+        toast.error("Failed to load data");
+    } finally { 
+        setIsLoading(false); 
     }
   };
 
-  const handleSaveEdit = async (e) => {
-    e.preventDefault();
-    // Optimistic Update
-    setPet(editForm);
-    setIsEditing(false);
-    toast.success('Profile updated successfully!');
-    
-    // TODO: Send PUT request to backend to save edits
+  useEffect(() => { 
+    fetchData(); 
+    const handleClickOutside = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) setIsFilterOpen(false);
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [id]);
+
+  // --- SAVE TO BACKEND LOGIC ---
+  const handleSaveEdit = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_BASE}/pets/${pet.id}`, {
+        method: 'PUT',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}` 
+        },
+        body: JSON.stringify({
+          name: editForm.name,
+          weight: editForm.weight
+        })
+      });
+
+      if (response.ok) {
+        const updatedPet = await response.json();
+        updatedPet.displayImage = pet.displayImage; // Keep current image in UI
+        setPet(updatedPet);
+        setIsEditing(false);
+        toast.success("Pet profile updated!");
+      } else {
+        toast.error("Failed to update database.");
+      }
+    } catch (error) {
+      toast.error("Server connection error.");
+    }
   };
 
-  if (isLoading || !pet) {
-      return (
-          <div className="flex justify-center items-center h-[60vh]">
-              <div className="w-10 h-10 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
-          </div>
-      );
-  }
+  // --- PHOTO UPLOAD LOGIC ---
+  const handleImageChange = async (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const formData = new FormData();
+      formData.append('image', file);
+      
+      const token = localStorage.getItem('token');
+      try {
+        const response = await fetch(`${API_BASE}/pets/owner/${JSON.parse(localStorage.getItem('user')).id}`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}` },
+          body: formData
+        });
+        
+        if (response.ok) {
+          toast.success("Photo uploaded! Please refresh to see changes.");
+          fetchData(); 
+        }
+      } catch (err) {
+        toast.error("Image upload failed.");
+      }
+    }
+  };
 
-  // Find most recent visit for the stat block
-  const lastVisit = medicalHistory.length > 0 ? medicalHistory[0].appointmentDate : 'No visits yet';
+  const getFilteredHistory = () => {
+    const now = new Date();
+    return medicalHistory.filter(item => {
+      const itemDate = new Date(item.appointmentDate);
+      if (filterType === 'thisMonth') return itemDate.getMonth() === now.getMonth() && itemDate.getFullYear() === now.getFullYear();
+      if (filterType === 'lastMonth') {
+        const lastM = now.getMonth() === 0 ? 11 : now.getMonth() - 1;
+        const year = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear();
+        return itemDate.getMonth() === lastM && itemDate.getFullYear() === year;
+      }
+      if (filterType === 'lastYear') return itemDate.getFullYear() === now.getFullYear() - 1;
+      return true;
+    });
+  };
+
+  const getStatusIcon = (status) => {
+    const s = status?.toUpperCase();
+    if (s === 'COMPLETED') return <CheckCircle size={18} className="text-emerald-500" />;
+    if (s === 'REJECTED') return <AlertCircle size={18} className="text-rose-500" />;
+    return <Clock size={18} className="text-slate-400" />;
+  };
+
+  const getStatusBadge = (status) => {
+    const s = status?.toUpperCase();
+    if (s === 'COMPLETED') return 'text-emerald-500 bg-emerald-50 border-emerald-200 dark:bg-emerald-500/10 dark:border-emerald-500/20';
+    if (s === 'REJECTED') return 'text-rose-500 bg-rose-50 border-rose-200 dark:bg-rose-500/10 dark:border-rose-500/20';
+    return 'text-amber-600 bg-amber-50 border-amber-200 dark:text-amber-500 dark:bg-amber-500/10 dark:border-amber-500/20';
+  };
+
+  if (isLoading || !pet) return (
+    <div className="h-screen bg-transparent flex items-center justify-center">
+      <div className="w-10 h-10 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
+    </div>
+  );
+
+  const SpeciesIcon = pet.species?.toUpperCase() === 'DOG' ? Dog : pet.species?.toUpperCase() === 'CAT' ? Cat : PawPrint;
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500 pb-12">
+    <div className="min-h-screen bg-transparent p-4 md:p-8 space-y-8 font-sans text-slate-900 dark:text-slate-200 animate-in fade-in duration-500">
       
-      {/* 1. HEADER & PET IDENTITY */}
-      <div className="bg-white dark:bg-slate-800 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden relative">
-        <div className="h-32 bg-gradient-to-r from-emerald-500 to-teal-600"></div>
-        <div className="px-6 sm:px-10 pb-8 relative flex flex-col sm:flex-row items-center sm:items-end gap-6">
+      {/* 1. SAAS PROFILE HEADER */}
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm">
+        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-8">
           
-          {/* EDITABLE PET IMAGE CONTAINER */}
-          <div className="relative -mt-16 shrink-0 group">
-            <img 
-              src={pet.image} 
-              alt={pet.name} 
-              className="w-32 h-32 rounded-full border-4 border-white dark:border-slate-800 object-cover shadow-lg bg-white" 
-            />
-            {/* Hidden File Input */}
-            <input 
-              type="file" 
-              ref={fileInputRef}
-              onChange={handleImageChange}
-              accept="image/*"
-              className="hidden"
-            />
-            {/* Edit Overlay Button */}
-            <button 
-              onClick={() => fileInputRef.current.click()}
-              className="absolute inset-0 bg-black/40 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 cursor-pointer border-4 border-transparent"
-            >
-              <Camera className="w-8 h-8 text-white/90" />
-            </button>
-          </div>
-          
-          <div className="flex-1 text-center sm:text-left">
-            <h1 className="text-3xl font-bold text-slate-900 dark:text-white capitalize">{pet.name}</h1>
-            <p className="text-slate-500 dark:text-slate-400 font-medium capitalize">{pet.breed || pet.species} • {pet.sex}</p>
+          <div className="flex items-center gap-6">
+            <div className="relative group">
+              <img 
+                src={pet.displayImage} 
+                className="w-24 h-24 md:w-28 md:h-28 rounded-2xl border-2 border-white dark:border-slate-800 object-cover bg-slate-100 dark:bg-slate-800 shadow-md" 
+                onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1543466835-00a7907e9de1?q=80&w=300' }}
+              />
+              <div className="absolute -bottom-2 -right-2 p-1.5 bg-emerald-500 rounded-lg text-white shadow border-2 border-white dark:border-slate-900">
+                <SpeciesIcon size={16} />
+              </div>
+            </div>
+            <div>
+              <div className="flex items-center gap-3">
+                <h1 className="text-3xl font-bold text-slate-900 dark:text-white tracking-tight capitalize">{pet.name}</h1>
+                <button 
+                  onClick={() => setIsEditing(true)}
+                  className="p-1.5 text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors"
+                >
+                  <Edit size={18} />
+                </button>
+              </div>
+              <p className="text-slate-500 dark:text-slate-400 font-medium flex items-center gap-2 mt-1 capitalize">
+                {pet.breed || 'Unknown'} <span className="w-1 h-1 bg-slate-300 dark:bg-slate-600 rounded-full"></span> {pet.gender}
+              </p>
+            </div>
           </div>
 
-          <div className="flex gap-3">
-            <button 
-              onClick={() => setIsEditing(true)}
-              className="px-5 py-2 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl font-bold text-slate-700 dark:text-white hover:bg-slate-50 dark:hover:bg-slate-600 transition-colors flex items-center gap-2"
-            >
-              <Edit className="w-4 h-4" /> Edit Profile
-            </button>
-          </div>
-        </div>
-
-        {/* Quick Stats Bar */}
-        <div className="grid grid-cols-2 md:grid-cols-4 divide-x divide-y md:divide-y-0 divide-slate-100 dark:divide-slate-700 border-t border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
-          <div className="p-4 text-center">
-            <p className="text-xs text-slate-400 font-bold uppercase">Age</p>
-            <p className="text-lg font-bold text-slate-900 dark:text-white">{pet.age}</p>
-          </div>
-          <div className="p-4 text-center">
-            <p className="text-xs text-slate-400 font-bold uppercase">Weight</p>
-            <p className="text-lg font-bold text-slate-900 dark:text-white">{pet.weight}</p>
-          </div>
-          <div className="p-4 text-center">
-            <p className="text-xs text-slate-400 font-bold uppercase">Next Vaccine</p>
-            <p className="text-lg font-bold text-amber-600">Immediate</p>
-          </div>
-          <div className="p-4 text-center">
-            <p className="text-xs text-slate-400 font-bold uppercase">Last Visit</p>
-            <p className="text-lg font-bold text-slate-900 dark:text-white text-sm mt-1">{lastVisit}</p>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 w-full lg:w-auto">
+            <StatCard label="Age" value={calculateAge(pet.dateOfBirth)} />
+            <StatCard label="Weight" value={`${pet.weight || '--'} kg`} />
+            <StatCard label="Last Visit" value={medicalHistory[0]?.appointmentDate || 'N/A'} />
+            <StatCard label="Status" value="Healthy" color="text-emerald-600 dark:text-emerald-500" />
           </div>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         
-        {/* LEFT COLUMN: VACCINATIONS & ALERTS */}
-        <div className="lg:col-span-1 space-y-8">
+        {/* SIDEBAR: ALERT & VAX SCHEDULE */}
+        <div className="space-y-6">
           
-          {/* Status Alert */}
-          <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 p-5 rounded-2xl flex items-start gap-3">
-             <AlertTriangle className="w-6 h-6 text-amber-600 shrink-0 mt-0.5" />
-             <div>
-                <h4 className="font-bold text-amber-800 dark:text-amber-400">Vaccination Due</h4>
-                <p className="text-sm text-amber-700/80 dark:text-amber-500/80 mt-1">Bordetella vaccine is currently overdue. Please schedule an appointment.</p>
-                <button onClick={() => navigate('/owner/appointments/book')} className="mt-3 text-sm font-bold text-amber-600 hover:underline">Schedule Now →</button>
-             </div>
+          {/* Actionable Health Alert */}
+          <div className="bg-amber-50 dark:bg-[#1f160b] border border-amber-200 dark:border-amber-900/50 rounded-2xl p-6 space-y-4 shadow-sm">
+            <div className="flex items-center gap-3 text-amber-600 dark:text-amber-500">
+              <AlertTriangle size={20} />
+              <h4 className="font-bold tracking-wide uppercase text-sm">Vaccination Due</h4>
+            </div>
+            <p className="text-sm text-amber-900 dark:text-slate-300 leading-relaxed font-medium">
+              Rabies booster is currently overdue. Schedule an appointment to keep {pet.name} safe.
+            </p>
+            <button 
+              onClick={() => navigate('/owner/appointments/book')}
+              className="w-full py-3 bg-amber-500 hover:bg-amber-400 text-white dark:text-slate-900 font-bold rounded-xl transition-all shadow-lg active:scale-95 text-sm"
+            >
+              Schedule Visit Now
+            </button>
           </div>
 
-          {/* Vaccination Schedule Table */}
-          <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
-            <div className="p-5 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center">
-              <h3 className="font-bold text-lg text-slate-900 dark:text-white flex items-center gap-2">
-                <Syringe className="w-5 h-5 text-emerald-500" /> Vaccination Schedule
+          {/* Vaccination Schedule List */}
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm overflow-hidden">
+            <div className="p-5 border-b border-slate-200 dark:border-slate-800">
+              <h3 className="font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <Syringe size={18} className="text-emerald-600 dark:text-emerald-500" /> Vaccination Schedule
               </h3>
             </div>
-            <div className="divide-y divide-slate-100 dark:divide-slate-700">
-               {vaccinations.map(vax => (
-                  <div key={vax.id} className="p-5 flex items-center justify-between">
-                     <div>
-                        <p className="font-bold text-slate-900 dark:text-white">{vax.name}</p>
-                        <p className="text-xs text-slate-500 mt-1">Due: {vax.nextDue}</p>
-                     </div>
-                     {vax.status === 'Completed' ? (
-                        <div className="flex items-center gap-1 text-emerald-600 text-sm font-bold bg-emerald-50 dark:bg-emerald-900/20 px-2 py-1 rounded">
-                           <CheckCircle className="w-4 h-4" /> Done
-                        </div>
-                     ) : (
-                        <div className="flex items-center gap-1 text-amber-600 text-sm font-bold bg-amber-50 dark:bg-amber-900/20 px-2 py-1 rounded">
-                           <Clock className="w-4 h-4" /> Due
-                        </div>
-                     )}
+            <div className="divide-y divide-slate-100 dark:divide-slate-800/50">
+              {['Rabies', 'Parvovirus', 'Bordetella'].map(type => {
+                const status = getVaccineStatus(pet[type.toLowerCase() + 'Date']);
+                return (
+                  <div key={type} className="p-5 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
+                    <div>
+                      <p className="font-bold text-slate-900 dark:text-slate-200">{type}</p>
+                      <p className="text-xs text-slate-500 mt-1">Due: {pet[type.toLowerCase() + 'Date'] || 'Unknown'}</p>
+                    </div>
+                    <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase border ${
+                      status.label === 'Up to Date' 
+                        ? 'bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-500 dark:border-emerald-500/20' 
+                        : status.label === 'Overdue' 
+                          ? 'bg-red-50 text-red-600 border-red-200 dark:bg-red-500/10 dark:text-red-500 dark:border-red-500/20' 
+                          : 'bg-amber-50 text-amber-600 border-amber-200 dark:bg-amber-500/10 dark:text-amber-500 dark:border-amber-500/20'
+                    }`}>
+                      {status.icon} {status.label}
+                    </div>
                   </div>
-               ))}
+                );
+              })}
             </div>
           </div>
         </div>
 
-        {/* RIGHT COLUMN: MEDICAL HISTORY TIMELINE */}
+        {/* MEDICAL HISTORY TIMELINE */}
         <div className="lg:col-span-2">
-          <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm p-6 sm:p-8 min-h-[400px]">
-             <div className="flex justify-between items-center mb-8">
-               <h3 className="font-bold text-xl text-slate-900 dark:text-white flex items-center gap-2">
-                  <Activity className="w-6 h-6 text-emerald-500" /> Medical History
-               </h3>
-               {medicalHistory.length > 0 && (
-                   <button className="text-sm font-bold text-emerald-600 hover:text-emerald-700 transition-colors">Download All</button>
-               )}
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 md:p-8 shadow-sm min-h-[600px]">
+             
+             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-10">
+                <h3 className="font-bold text-xl text-slate-900 dark:text-white flex items-center gap-3">
+                  <History size={22} className="text-emerald-600 dark:text-emerald-500"/> Medical History
+                </h3>
+                
+                {/* Custom Filter Dropdown */}
+                <div className="relative" ref={dropdownRef}>
+                  <button 
+                    onClick={() => setIsFilterOpen(!isFilterOpen)}
+                    className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-4 py-2 rounded-xl font-medium text-sm text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-all shadow-sm"
+                  >
+                    <Filter size={14} />
+                    {filterOptions.find(o => o.id === filterType).label}
+                    <ChevronDown size={14} className={`transition-transform ${isFilterOpen ? 'rotate-180' : ''}`} />
+                  </button>
+
+                  {isFilterOpen && (
+                    <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl z-50 overflow-hidden animate-in fade-in zoom-in-95">
+                      {filterOptions.map(opt => (
+                        <button
+                          key={opt.id}
+                          onClick={() => { setFilterType(opt.id); setIsFilterOpen(false); }}
+                          className={`w-full text-left px-4 py-3 text-sm font-medium flex items-center justify-between transition-colors ${
+                            filterType === opt.id 
+                              ? 'bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-white' 
+                              : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-slate-900 dark:hover:text-white'
+                          }`}
+                        >
+                          {opt.label}
+                          {filterType === opt.id && <Check size={14} className="text-emerald-600 dark:text-emerald-500" />}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
              </div>
 
              {/* TIMELINE */}
-             <div className="space-y-8 relative before:absolute before:inset-0 before:ml-5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-emerald-500 before:via-slate-200 before:to-transparent dark:before:via-slate-700">
-                
-                {medicalHistory.length === 0 ? (
-                    <div className="text-center py-10 relative z-10 bg-white dark:bg-slate-800">
-                        <p className="text-slate-500">No medical history available for this pet.</p>
+             <div className="space-y-6 relative before:absolute before:inset-0 before:ml-5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-[2px] before:bg-slate-200 dark:before:bg-slate-800">
+                {getFilteredHistory().length === 0 ? (
+                    <div className="py-20 flex flex-col items-center text-center relative z-10">
+                        <div className="w-16 h-16 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mb-4 text-slate-400"><History size={32} /></div>
+                        <p className="text-slate-500 dark:text-slate-400 font-bold">No medical records found.</p>
                     </div>
                 ) : (
-                    medicalHistory.map((record) => (
-                      <div key={record.id} className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
+                    getFilteredHistory().map((record) => (
+                      <div key={record.id} className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group">
                         
-                        {/* Timeline Dot */}
-                        <div className={`flex items-center justify-center w-10 h-10 rounded-full border-4 border-white dark:border-slate-800 shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 ${record.status === 'COMPLETED' ? 'bg-emerald-500 text-white' : 'bg-amber-500 text-white'}`}>
-                            {record.status === 'COMPLETED' ? <CheckCircle className="w-4 h-4" /> : <Calendar className="w-4 h-4" />}
+                        {/* Timeline Node Icon */}
+                        <div className="flex items-center justify-center w-10 h-10 rounded-full bg-white dark:bg-slate-900 border-4 border-white dark:border-slate-900 shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 shadow-sm z-10">
+                            {getStatusIcon(record.status)}
                         </div>
 
-                        {/* Content Card */}
-                        <div className="w-[calc(100%-4rem)] md:w-[calc(50%-2.5rem)] p-4 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 shadow-sm hover:shadow-md transition-all">
-                            <div className="flex justify-between items-center mb-1">
-                              <span className="text-xs font-bold text-emerald-600 uppercase tracking-wider">{record.visitType}</span>
-                              <span className="text-xs font-bold text-slate-400">{record.appointmentDate}</span>
-                            </div>
-                            <h4 className="font-bold text-slate-900 dark:text-white text-lg mb-1">
-                                Dr. {record.vet.lastName}
-                            </h4>
-                            
-                            {/* Dynamically show either the vet's clinical notes, or the owner's symptoms */}
-                            <p className="text-sm text-slate-600 dark:text-slate-300 mb-3 whitespace-pre-wrap">
-                                {record.clinicalNotes 
-                                    ? record.clinicalNotes 
-                                    : (record.symptoms && record.symptoms !== "No symptoms provided" 
-                                        ? `Reason: ${record.symptoms}` 
-                                        : "Routine checkup.")}
-                            </p>
-                            
-                            {/* Document Download Link */}
-                            {record.medicalReportUrl && (
-                              <a 
-                                href={`http://localhost:8082/uploads/${record.medicalReportUrl}`}
-                                target="_blank" rel="noreferrer"
-                                className="flex items-center gap-2 text-sm font-bold text-blue-600 bg-blue-50 dark:bg-blue-900/20 px-3 py-1.5 rounded-lg hover:bg-blue-100 transition-colors w-max"
-                              >
-                                  <FileText className="w-4 h-4" /> View Report
-                              </a>
-                            )}
-
-                            {record.status === 'SCHEDULED' && (
-                                <span className="inline-block mt-2 px-2 py-1 bg-amber-100 text-amber-700 rounded text-xs font-bold uppercase">
-                                    Upcoming
+                        {/* Timeline Card */}
+                        <div className="w-[calc(100%-4rem)] md:w-[calc(50%-2.5rem)] bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 p-5 rounded-2xl hover:bg-white dark:hover:bg-slate-800 transition-colors shadow-sm">
+                            <div className="flex justify-between items-start mb-3 gap-2">
+                              <div className="flex items-center gap-3">
+                                {/* Visit Type Badge */}
+                                <span className="text-[10px] font-bold bg-slate-200 dark:bg-slate-700/50 text-slate-600 dark:text-slate-400 px-2 py-1 rounded uppercase tracking-wider">
+                                  {record.visitType || 'CLINIC'}
                                 </span>
-                            )}
+                                <h4 className="text-slate-900 dark:text-white font-bold text-base">Dr. {record.vet?.lastName || 'Veterinarian'}</h4>
+                              </div>
+                              <div className="flex flex-col items-end gap-1.5">
+                                <span className="text-xs font-medium text-slate-500 dark:text-slate-400">{record.appointmentDate}</span>
+                                <span className={`text-[9px] px-2 py-0.5 rounded border font-bold uppercase tracking-widest ${getStatusBadge(record.status)}`}>
+                                  {record.status}
+                                </span>
+                              </div>
+                            </div>
+                            <p className="text-sm text-slate-600 dark:text-slate-400 italic">
+                              "{record.clinicalNotes || record.symptoms || 'No symptoms provided'}"
+                            </p>
                         </div>
                       </div>
                     ))
@@ -312,48 +382,116 @@ const HealthRecords = () => {
         </div>
       </div>
 
-      {/* --- EDIT PROFILE MODAL --- */}
+      {/* EDIT MODAL */}
       {isEditing && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-200">
-            <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center bg-slate-50 dark:bg-slate-800/50">
-               <h3 className="font-bold text-lg text-slate-900 dark:text-white">Edit Pet Profile</h3>
-               <button onClick={() => setIsEditing(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-white"><X className="w-5 h-5"/></button>
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 dark:bg-slate-950/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-[#111827] border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in-95">
+            
+            <div className="px-6 py-5 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center">
+               <h3 className="font-bold text-lg text-slate-900 dark:text-white">Edit Profile</h3>
+               <button onClick={() => setIsEditing(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-white transition-colors"><X size={20}/></button>
             </div>
             
-            <form onSubmit={handleSaveEdit} className="p-6 space-y-4">
-               <div className="grid grid-cols-2 gap-4">
-                 <div>
-                   <label className="text-xs font-bold text-slate-500 uppercase">Pet Name</label>
-                   <input type="text" value={editForm.name} onChange={e => setEditForm({...editForm, name: e.target.value})} className="w-full mt-1 p-2 border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500" />
-                 </div>
-                 <div>
-                   <label className="text-xs font-bold text-slate-500 uppercase">Breed</label>
-                   <input type="text" value={editForm.breed} onChange={e => setEditForm({...editForm, breed: e.target.value})} className="w-full mt-1 p-2 border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500" />
-                 </div>
-                 <div>
-                   <label className="text-xs font-bold text-slate-500 uppercase">Age</label>
-                   <input type="text" value={editForm.age} onChange={e => setEditForm({...editForm, age: e.target.value})} className="w-full mt-1 p-2 border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500" />
-                 </div>
-                 <div>
-                   <label className="text-xs font-bold text-slate-500 uppercase">Weight</label>
-                   <input type="text" value={editForm.weight} onChange={e => setEditForm({...editForm, weight: e.target.value})} className="w-full mt-1 p-2 border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500" />
-                 </div>
-               </div>
-               
-               <div className="pt-4 flex justify-end gap-3 border-t border-slate-100 dark:border-slate-700 mt-6">
-                 <button type="button" onClick={() => setIsEditing(false)} className="px-4 py-2 font-bold text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors">Cancel</button>
-                 <button type="submit" className="px-6 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg shadow-lg flex items-center gap-2 transition-transform active:scale-95">
-                   <Save className="w-4 h-4"/> Save Changes
-                 </button>
-               </div>
-            </form>
+            <div className="p-8 space-y-6">
+                
+                {/* Image Upload Area */}
+                <div className="flex justify-center">
+                  <div className="relative group cursor-pointer" onClick={() => fileInputRef.current.click()}>
+                    <img src={pet.displayImage} className="w-24 h-24 rounded-3xl object-cover border-2 border-slate-200 dark:border-slate-700 shadow-md" />
+                    <div className="absolute inset-0 bg-black/60 rounded-3xl flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-all text-white">
+                      <Camera size={20}/>
+                    </div>
+                  </div>
+                  <input type="file" ref={fileInputRef} className="hidden" onChange={handleImageChange} accept="image/*" />
+                </div>
+
+                <div className="grid grid-cols-2 gap-5">
+                  {/* EDITABLE FIELDS */}
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest ml-1">Pet Name</label>
+                    <input 
+                      type="text" 
+                      value={editForm?.name || ''} 
+                      onChange={e => setEditForm({...editForm, name: e.target.value})} 
+                      className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white p-3 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none transition-all text-sm" 
+                    />
+                  </div>
+
+                  {/* READ-ONLY FIELD (Disabled to prevent changes) */}
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest ml-1">Breed</label>
+                    <input 
+                      type="text" 
+                      value={pet.breed || ''} 
+                      readOnly
+                      className="w-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 p-3 rounded-xl outline-none cursor-not-allowed opacity-70 text-sm" 
+                    />
+                  </div>
+                  
+                  {/* READ-ONLY FIELD (Disabled to prevent changes) */}
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest ml-1">Gender</label>
+                    <select 
+                      value={pet.gender || ''} 
+                      disabled
+                      className="w-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 p-3 rounded-xl outline-none cursor-not-allowed opacity-70 appearance-none text-sm"
+                    >
+                      <option value="Male">Male</option>
+                      <option value="Female">Female</option>
+                    </select>
+                  </div>
+
+                  {/* EDITABLE FIELD */}
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest ml-1">Weight (kg)</label>
+                    <input 
+                      type="number" 
+                      value={editForm?.weight || ''} 
+                      onChange={e => setEditForm({...editForm, weight: e.target.value})} 
+                      className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white p-3 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none transition-all text-sm" 
+                    />
+                  </div>
+                  
+                  {/* READ-ONLY FIELD (Disabled to prevent changes) */}
+                  <div className="col-span-2 space-y-1.5">
+                    <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest ml-1">Date of Birth</label>
+                    <input 
+                      type="date" 
+                      value={pet.dateOfBirth || ''} 
+                      readOnly
+                      className="w-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 p-3 rounded-xl outline-none cursor-not-allowed opacity-70 text-sm" 
+                    />
+                  </div>
+                </div>
+
+                <div className="flex gap-4 pt-4 mt-4">
+                  <button 
+                    onClick={() => setIsEditing(false)} 
+                    className="flex-1 py-3 font-bold text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white transition-all text-sm"
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    onClick={handleSaveEdit} 
+                    className="flex-[2] py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl shadow-lg transition-all active:scale-95 flex items-center justify-center gap-2 text-sm"
+                  >
+                    <Save size={16}/> Save Changes
+                  </button>
+                </div>
+            </div>
           </div>
         </div>
       )}
-
     </div>
   );
 };
+
+/* --- MINI COMPONENTS --- */
+const StatCard = ({ label, value, color = "text-slate-900 dark:text-white" }) => (
+  <div className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-4 text-center">
+    <p className="text-[10px] uppercase text-slate-500 dark:text-slate-400 font-bold tracking-wider mb-1">{label}</p>
+    <p className={`text-lg font-bold ${color}`}>{value}</p>
+  </div>
+);
 
 export default HealthRecords;
