@@ -1,7 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Video, Building, Zap, Calendar, X, FileText, CreditCard, Stethoscope, AlertCircle, CheckCircle } from 'lucide-react';
+import { Video, Building, Zap, Calendar, X, FileText, CreditCard, Stethoscope, AlertCircle, CheckCircle, Download } from 'lucide-react'; // Added Download and FileText
 import toast from 'react-hot-toast';
+import JoinMeetingButton from '../shared/JoinMeetingButton'; 
+import { API } from '../../config/api';
+
+const API_BASE = API.BASE_API;
 
 const Appointments = () => {
   const navigate = useNavigate();
@@ -17,7 +21,7 @@ const Appointments = () => {
       if (!userStr || !token) { navigate('/login'); return; }
 
       const user = JSON.parse(userStr);
-      const response = await fetch(`http://localhost:8082/api/appointments/owner/${user.id}`, {
+      const response = await fetch(`${API_BASE}/appointments/owner/${user.id}`, { 
         headers: { 'Authorization': `Bearer ${token}` }
       });
 
@@ -36,34 +40,76 @@ const Appointments = () => {
     fetchAppointments();
   }, [navigate]);
 
-  // --- NEW: HANDLE PAYMENT ---
-  const handlePayment = async (id) => {
+  const handlePayment = async (apptId) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:8082/api/appointments/${id}/pay`, {
-        method: 'PUT',
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const appt = appointments.find(a => a.id === apptId);
+      const user = JSON.parse(localStorage.getItem('user'));
 
-      if (response.ok) {
-        toast.success("Payment successful! Appointment Confirmed.");
-        setSelectedAppt(null);
-        fetchAppointments(); // Refresh the list
-      } else {
-        toast.error("Payment failed.");
-      }
+      const res = await fetch(`${API_BASE}/payments/create-order`, {
+        method: 'POST',
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json' 
+        },
+        body: JSON.stringify({ amount: appt.amountPaid })
+      });
+      
+      if (!res.ok) throw new Error("Order creation failed");
+      const order = await res.json();
+
+      const options = {
+        key: "rzp_test_SQ0ta0U3p1xtRA",
+        amount: order.amount,
+        currency: "INR",
+        name: "PetCare Platform",
+        description: `Consultation with Dr. ${appt.vet.lastName}`,
+        order_id: order.id, 
+        handler: async function (response) {
+          const verifyRes = await fetch(`${API_BASE}/payments/verify-payment`, {
+            method: 'POST',
+            headers: { 
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json' 
+            },
+            body: JSON.stringify({
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+              appointmentId: appt.id
+            })
+          });
+
+          if (verifyRes.ok) {
+            toast.success("Payment successful! Appointment Confirmed.");
+            setSelectedAppt(null);
+            fetchAppointments(); 
+          } else {
+            toast.error("Signature verification failed.");
+          }
+        },
+        prefill: {
+          name: `${user.firstName} ${user.lastName}`,
+          email: user.email,
+        },
+        theme: { color: "#0891b2" }, 
+      };
+
+      const rzp = new window.Razorpay(options);
+      rzp.open();
+
     } catch (error) {
-      toast.error("Network error.");
+      console.error("Payment error:", error);
+      toast.error("Payment initialization failed.");
     }
   };
 
-  // --- NEW: HANDLE CANCELLATION ---
   const handleCancel = async (id) => {
     if (!window.confirm("Are you sure you want to cancel this appointment?")) return;
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:8082/api/appointments/${id}/cancel`, {
+      const response = await fetch(`${API_BASE}/appointments/${id}/cancel`, {
         method: 'PUT',
         headers: { 
           'Authorization': `Bearer ${token}`,
@@ -75,17 +121,16 @@ const Appointments = () => {
       if (response.ok) {
         toast.success("Appointment Cancelled. Refund initiated if applicable.");
         setSelectedAppt(null);
-        fetchAppointments(); // Refresh the list
+        fetchAppointments(); 
       } else {
         const errText = await response.text();
-        toast.error(errText); // Will show the 24-hour warning from backend!
+        toast.error(errText); 
       }
     } catch (error) {
       toast.error("Network error.");
     }
   };
 
-  // Check if cancellation is allowed (Frontend > 24hr check)
   const isCancellable = (dateStr) => {
     const apptDate = new Date(dateStr);
     const tomorrow = new Date();
@@ -101,9 +146,9 @@ const Appointments = () => {
       case 'ACCEPTED':
         return <span className="px-3 py-1 rounded-full text-xs font-bold bg-indigo-100 text-indigo-700 animate-pulse">Payment Required</span>;
       case 'SCHEDULED':
-        return <span className="px-3 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-700">Confirmed</span>;
+        return <span className="px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700">Confirmed</span>;
       case 'COMPLETED':
-        return <span className="px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700">Completed</span>;
+        return <span className="px-3 py-1 rounded-full text-xs font-bold bg-slate-200 text-slate-700">Completed</span>;
       case 'CANCELLED':
       case 'CANCELLED_BY_VET':
       case 'REJECTED':
@@ -248,7 +293,7 @@ const Appointments = () => {
               {/* --- ACTION BUTTONS --- */}
               <div className="pt-4 border-t border-slate-200 dark:border-slate-700 flex flex-col gap-3">
                 
-                {/* 1. PAY NOW BUTTON (If Vet Accepted) */}
+                {/* 1. PAY NOW BUTTON */}
                 {selectedAppt.status === 'ACCEPTED' && (
                   <button 
                     onClick={() => handlePayment(selectedAppt.id)}
@@ -258,14 +303,23 @@ const Appointments = () => {
                   </button>
                 )}
 
-                {/* 2. WAITING MESSAGE (If Pending) */}
+                {/* 2. WAITING MESSAGE */}
                 {selectedAppt.status === 'PENDING' && (
                   <div className="w-full py-3 bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 rounded-xl font-bold flex items-center justify-center gap-2">
                     <AlertCircle className="w-4 h-4" /> Waiting for Doctor's Approval...
                   </div>
                 )}
 
-                {/* 3. CANCEL BUTTON (If within rules) */}
+                {/* 3. GOOGLE MEET BUTTON */}
+                {selectedAppt.status === 'SCHEDULED' && selectedAppt.visitType === 'video' && (
+                  <JoinMeetingButton 
+                    appointmentDate={selectedAppt.appointmentDate}
+                    appointmentTime={selectedAppt.appointmentTime}
+                    meetLink={selectedAppt.meetLink}
+                  />
+                )}
+
+                {/* 4. CANCEL BUTTON */}
                 {(selectedAppt.status === 'PENDING' || selectedAppt.status === 'SCHEDULED' || selectedAppt.status === 'ACCEPTED') && (
                   <button 
                     onClick={() => handleCancel(selectedAppt.id)}
@@ -279,6 +333,29 @@ const Appointments = () => {
                     {isCancellable(selectedAppt.appointmentDate) ? "Cancel Appointment" : "Too late to cancel (< 24h)"}
                   </button>
                 )}
+
+                {/* 5. VIEW & DOWNLOAD PRESCRIPTION (If Completed) */}
+                {selectedAppt.status === 'COMPLETED' && selectedAppt.prescriptionFileUrl && (
+                  <div className="flex gap-3">
+                    <a 
+                      href={`${API.BASE_URL}/uploads/${selectedAppt.prescriptionFileUrl}`} 
+                      target="_blank" 
+                      rel="noreferrer" 
+                      className="flex-1 py-3 bg-emerald-50 text-emerald-700 border border-emerald-200 font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-emerald-100 transition-colors"
+                    >
+                      <FileText className="w-4 h-4" /> View Prescription
+                    </a>
+                    
+                    <a 
+                      href={`${API.BASE_URL}/uploads/${selectedAppt.prescriptionFileUrl}`} 
+                      download 
+                      className="flex-1 py-3 bg-emerald-600 text-white font-bold rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/30 hover:bg-emerald-700 transition-transform hover:scale-[1.02]"
+                    >
+                      Download <Download className="w-4 h-4" />
+                    </a>
+                  </div>
+                )}
+                
               </div>
 
             </div>
