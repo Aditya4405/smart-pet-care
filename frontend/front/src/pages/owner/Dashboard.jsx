@@ -1,17 +1,24 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  Calendar, Bell, Activity, ArrowRight, Heart, ShoppingBag, Clock 
+  Calendar, Bell, Activity, ArrowRight, Heart, ShoppingBag, Clock, Video 
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import JoinMeetingButton from '../shared/JoinMeetingButton';
+import { API } from '../../config/api';
+
+const API_BASE = API.BASE_API;
 
 const Dashboard = () => {
   const navigate = useNavigate();
   
   // --- REAL DATA STATE ---
-  const [user, setUser] = useState(JSON.parse(localStorage.getItem('user')) || { firstName: 'Aditya' });
+  const [user, setUser] = useState(JSON.parse(localStorage.getItem('user')) || { firstName: 'Owner' });
   const [pets, setPets] = useState([]);
   const [appointments, setAppointments] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  // ✅ Clean the ID to prevent the 4:1 fetch error
+  const cleanId = user.id ? String(user.id).split(':')[0] : null;
 
   // --- DYNAMIC GREETING LOGIC ---
   const getGreeting = () => {
@@ -28,16 +35,16 @@ const Dashboard = () => {
     const fetchDashboardData = async () => {
       try {
         const token = localStorage.getItem('token');
-        if (!user.id || !token) {
+        if (!cleanId || !token) {
           setIsLoading(false);
           return;
         }
 
         const [petsRes, apptsRes] = await Promise.all([
-          fetch(`http://localhost:8082/api/pets/owner/${user.id}`, {
+          fetch(`${API_BASE}/pets/owner/${cleanId}`, {
             headers: { 'Authorization': `Bearer ${token}` }
           }),
-          fetch(`http://localhost:8082/api/appointments/owner/${user.id}`, {
+          fetch(`${API_BASE}/appointments/owner/${cleanId}`, {
             headers: { 'Authorization': `Bearer ${token}` }
           })
         ]);
@@ -60,12 +67,23 @@ const Dashboard = () => {
     };
 
     fetchDashboardData();
-  }, [user.id]);
+  }, [cleanId]);
 
-  const upcomingAppt = appointments.find(a => a.status === 'SCHEDULED') || null;
+  // --- ONLY SHOW TRULY UPCOMING (TODAY OR FUTURE) ---
+  const upcomingAppt = appointments.find(appt => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const apptDate = new Date(appt.appointmentDate);
+    apptDate.setHours(0, 0, 0, 0);
+
+    return (appt.status === 'SCHEDULED' || appt.status === 'ACCEPTED') && apptDate >= today;
+  }) || null;
   
   // --- EXTRACT FOLLOW-UPS ---
   const eligibleFollowUps = appointments.filter(appt => appt.status === 'COMPLETED' && appt.followUpEnabled);
+
+  // ✅ SMART ACTION LOGIC: Only show actions if there's an appointment waiting for payment
+  const pendingPaymentsCount = appointments.filter(appt => appt.status === 'ACCEPTED').length;
 
   return (
     <div className="space-y-8 pb-12 animate-in fade-in duration-500">
@@ -91,46 +109,88 @@ const Dashboard = () => {
         
         {/* KPI 1: Next Appointment */}
         <div className="bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl p-6 text-white shadow-xl shadow-indigo-500/20 relative overflow-hidden group min-h-[180px]">
-          <div className="relative z-10">
-            <div className="flex justify-between items-start mb-4">
-              <div className="p-2 bg-white/20 backdrop-blur-md rounded-lg">
-                <Calendar className="w-6 h-6 text-white" />
+          <div className="relative z-10 flex flex-col h-full justify-between">
+            <div>
+              <div className="flex justify-between items-start mb-4">
+                <div className="p-2 bg-white/20 backdrop-blur-md rounded-lg">
+                  <Calendar className="w-6 h-6 text-white" />
+                </div>
+                {upcomingAppt && (
+                    <span className={`text-xs font-bold px-2 py-1 rounded text-white uppercase tracking-widest ${upcomingAppt.status === 'ACCEPTED' ? 'bg-amber-500/80 animate-pulse' : 'bg-white/20'}`}>
+                        {upcomingAppt.status === 'ACCEPTED' ? 'Action Needed' : 'Upcoming'}
+                    </span>
+                )}
               </div>
-              {upcomingAppt && <span className="text-xs font-bold bg-white/20 px-2 py-1 rounded text-white uppercase">Upcoming</span>}
+              
+              {upcomingAppt ? (
+                  <>
+                      <h3 className="text-2xl font-bold truncate">Dr. {upcomingAppt.vet?.lastName || 'Vet'}</h3>
+                      <p className="text-indigo-100 mt-1 capitalize text-sm flex items-center gap-2">
+                          {upcomingAppt.visitType === 'video' ? <Video size={14}/> : <Activity size={14}/>}
+                          {upcomingAppt.visitType === 'video' ? 'Video Consult' : 'Clinic Visit'} for {upcomingAppt.pet?.name || 'Pet'}
+                      </p>
+                  </>
+              ) : (
+                  <>
+                      <h3 className="text-2xl font-bold mt-2">No Upcoming Visits</h3>
+                      <p className="text-indigo-100 mt-1">Your pets are all caught up!</p>
+                  </>
+              )}
             </div>
-            
-            {upcomingAppt ? (
-                <>
-                    <h3 className="text-2xl font-bold truncate">Dr. {upcomingAppt.vet?.lastName || 'Vet'}</h3>
-                    <p className="text-indigo-100 mt-1 capitalize">
-                        {upcomingAppt.visitType === 'video' ? 'Video Consult' : 'Clinic Visit'} for {upcomingAppt.pet?.name || 'Pet'}
-                    </p>
-                    <p className="text-sm font-medium mt-4 opacity-90">
-                        {upcomingAppt.appointmentTime} • {upcomingAppt.appointmentDate}
-                    </p>
-                </>
-            ) : (
-                <>
-                    <h3 className="text-2xl font-bold mt-2">No Upcoming Visits</h3>
-                    <p className="text-indigo-100 mt-1">Your pets are all caught up!</p>
-                </>
+
+            {upcomingAppt && (
+              <div className="mt-4 pt-4 border-t border-white/10 flex items-center justify-between">
+                <div className="text-xs font-medium text-indigo-100">
+                   {upcomingAppt.appointmentTime} • {upcomingAppt.appointmentDate}
+                </div>
+              </div>
             )}
+
+            {/* --- ACTION BUTTONS (SMART BUTTONS) --- */}
+            {upcomingAppt && (
+              <div className="mt-4">
+                {upcomingAppt.status === 'ACCEPTED' ? (
+                  <button 
+                    onClick={() => navigate('/owner/appointments')}
+                    className="w-full py-3 px-4 rounded-xl font-bold flex items-center justify-center gap-2 bg-indigo-500 hover:bg-indigo-400 text-white shadow-lg shadow-indigo-500/30 transition-all cursor-pointer"
+                  >
+                    {upcomingAppt.visitType === 'video' ? 'Pay Now to Unlock Meet Link' : 'Pay Now to Confirm Visit'}
+                  </button>
+                ) : upcomingAppt.visitType === 'video' && upcomingAppt.status === 'SCHEDULED' ? (
+                  <JoinMeetingButton 
+                    appointmentDate={upcomingAppt.appointmentDate}
+                    appointmentTime={upcomingAppt.appointmentTime}
+                    meetLink={upcomingAppt.meetLink}
+                  />
+                ) : null}
+              </div>
+            )}
+            
           </div>
           <div className="absolute -bottom-4 -right-4 w-32 h-32 bg-white/10 rounded-full blur-2xl group-hover:bg-white/20 transition-all"></div>
         </div>
 
-        {/* KPI 2: Health Alerts */}
+        {/* ✅ KPI 2: FIXED Health Alerts (Smart Action Required) */}
         <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md transition-all">
           <div className="flex justify-between items-start mb-4">
-            <div className="p-2 bg-amber-50 dark:bg-amber-900/20 rounded-lg">
-              <Bell className="w-6 h-6 text-amber-500" />
+            <div className={`p-2 rounded-lg ${pendingPaymentsCount > 0 ? 'bg-amber-50 dark:bg-amber-900/20' : 'bg-slate-50 dark:bg-slate-700/50'}`}>
+              <Bell className={`w-6 h-6 ${pendingPaymentsCount > 0 ? 'text-amber-500' : 'text-slate-400'}`} />
             </div>
-            <span className="text-2xl font-bold text-slate-900 dark:text-white">1</span>
+            <span className="text-2xl font-bold text-slate-900 dark:text-white">
+                {isLoading ? '-' : pendingPaymentsCount}
+            </span>
           </div>
           <h3 className="font-bold text-slate-900 dark:text-white">Action Required</h3>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1 mb-4">Check your pet's vaccination status.</p>
-          <button onClick={() => navigate('/owner/pets')} className="text-sm font-semibold text-amber-600 hover:text-amber-700 dark:text-amber-400 flex items-center gap-1">
-            View Health Records <ArrowRight className="w-4 h-4" />
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1 mb-4">
+              {pendingPaymentsCount > 0 
+                  ? `You have ${pendingPaymentsCount} pending payment${pendingPaymentsCount > 1 ? 's' : ''}.` 
+                  : "No pending actions required."}
+          </p>
+          <button 
+            onClick={() => navigate(pendingPaymentsCount > 0 ? '/owner/appointments' : '/owner/pets')} 
+            className={`text-sm font-semibold flex items-center gap-1 transition-colors ${pendingPaymentsCount > 0 ? 'text-amber-600 hover:text-amber-700 dark:text-amber-400' : 'text-slate-400 hover:text-cyan-600 dark:hover:text-cyan-400'}`}
+          >
+            {pendingPaymentsCount > 0 ? 'Complete Payment' : 'View Health Records'} <ArrowRight className="w-4 h-4" />
           </button>
         </div>
 
@@ -163,7 +223,6 @@ const Dashboard = () => {
              </span>
         </div>
         
-        {/* Real Data Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
            {eligibleFollowUps.length > 0 ? (
                eligibleFollowUps.map(appt => (
@@ -231,7 +290,7 @@ const Dashboard = () => {
         </div>
 
         <div className="space-y-6">
-           <div className="bg-cyan-50 dark:bg-cyan-900/20 rounded-2xl p-5 border border-cyan-100 dark:border-cyan-800/30">
+            <div className="bg-cyan-50 dark:bg-cyan-900/20 rounded-2xl p-5 border border-cyan-100 dark:border-cyan-800/30">
             <h3 className="font-bold text-cyan-900 dark:text-cyan-100 mb-2">Did you know?</h3>
             <p className="text-sm text-cyan-800 dark:text-cyan-200 leading-relaxed">
               Cats need high-protein diets because they are obligate carnivores.
@@ -245,13 +304,11 @@ const Dashboard = () => {
 
 // --- DYNAMIC FOLLOW-UP CARD COMPONENT ---
 const RealFollowUpCard = ({ appt, navigate }) => {
-    // Calculate if it is expired
     const visitDate = new Date(appt.appointmentDate);
     const expiryDate = new Date(visitDate);
     expiryDate.setDate(expiryDate.getDate() + (appt.followUpDays || 3));
     
     const today = new Date();
-    // Reset times to compare just the dates
     today.setHours(0,0,0,0);
     expiryDate.setHours(0,0,0,0);
     
