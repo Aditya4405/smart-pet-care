@@ -73,12 +73,6 @@ cd backend
 mvn spring-boot:run
 ```
 
-Backend runs on:
-
-```
-http://localhost:8082
-```
-
 ---
 
 ### 3️⃣ Run Frontend
@@ -88,13 +82,6 @@ cd frontend
 npm install
 npm run dev
 ```
-
-Frontend runs on:
-
-```
-http://localhost:5173
-```
-
 ---
 
 ## 📂 Project Structure
@@ -112,7 +99,6 @@ smart-pet-care
 ## 🔮 Future Enhancements
 
 * AI Pet Health Assistant
-* Online Vet Consultation
 * Vaccination Reminder System
 * Mobile App Version
 
