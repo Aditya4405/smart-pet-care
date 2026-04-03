@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, Filter, Eye, X } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { API } from '../../config/api';
 
 const Patients = () => {
   const navigate = useNavigate();
@@ -23,9 +24,9 @@ const Patients = () => {
         }
         const user = JSON.parse(userStr);
 
-        const response = await fetch(`http://localhost:8082/api/appointments/vet/${user.id}`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
+        const response = await fetch(`${API.BASE_API}/appointments/vet/${user.id}`, {
+              headers: { Authorization: `Bearer ${token}` }       
+          });
 
         if (response.ok) {
           const data = await response.json();
