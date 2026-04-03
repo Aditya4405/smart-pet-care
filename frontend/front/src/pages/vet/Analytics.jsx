@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { API } from '../../config/api';
 import { 
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
   PieChart, Pie, Cell 
@@ -25,9 +26,9 @@ const Analytics = () => {
         }
         const user = JSON.parse(userStr);
 
-        const response = await fetch(`http://localhost:8082/api/appointments/vet/${user.id}`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
+       const response = await fetch(`${API.BASE_API}/appointments/vet/${user.id}`, {
+             headers: { 'Authorization': `Bearer ${token}` }
+          });
 
         if (response.ok) {
           const data = await response.json();
