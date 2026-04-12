@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import PublicNavbar from '../components/PublicNavbar';
-import { ShieldCheck, User, Users, Eye, EyeOff } from 'lucide-react';
+import { ShieldCheck, Users, Eye, EyeOff } from 'lucide-react';
 import { API } from "../config/api";
 import toast from 'react-hot-toast';
 
@@ -11,7 +11,6 @@ const SignUp = () => {
 
   // State
   const [isLogin, setIsLogin] = useState(locationPath.pathname === '/login');
-  const [isAdminLogin, setIsAdminLogin] = useState(false);
   const [userType, setUserType] = useState('user'); 
   
   // Password Visibility State
@@ -23,7 +22,6 @@ const SignUp = () => {
   useEffect(() => {
     setIsLogin(locationPath.pathname === '/login');
     setErrors({});
-    setIsAdminLogin(false);
     setShowPassword(false);
     setShowConfirmPassword(false);
   }, [locationPath.pathname]);
@@ -39,7 +37,7 @@ const SignUp = () => {
     confirmPassword: '',
     // Vet Specific
     clinicName: '',
-    location: '', // <--- NEW LOCATION FIELD
+    location: '', 
     specialization: '',
     yearsExperience: '',
     licenseNumber: '',
@@ -69,7 +67,7 @@ const SignUp = () => {
       
       if (userType === 'vet') {
          if (!formData.clinicName) newErrors.clinicName = 'Clinic Name required';
-         if (!formData.location) newErrors.location = 'Location required'; // <--- VALIDATION ADDED
+         if (!formData.location) newErrors.location = 'Location required'; 
          if (!formData.licenseNumber) newErrors.licenseNumber = 'License required';
       }
     }
@@ -124,24 +122,14 @@ const SignUp = () => {
             if (isLogin) {
                 const normalizedRole = userData.role ? userData.role.toUpperCase() : 'USER';
                 
-                if (!isAdminLogin && normalizedRole === 'ADMIN') {
-                    toast.error("Account mismatch: Please switch to 'Admin Login'.");
-                    setIsLoading(false);
-                    return; 
-                }
-
-                if (isAdminLogin && normalizedRole !== 'ADMIN') {
-                    toast.error("Access Denied: Administrator privileges required.");
-                    setIsLoading(false);
-                    return; 
-                }
-
+                // ✅ SMART ROUTING: Admin flow logic has been streamlined.
                 const finalUser = { ...userData, role: normalizedRole };
                 localStorage.setItem('user', JSON.stringify(finalUser));
                 localStorage.setItem('token', userData.token); 
                 
                 toast.success("Login Successful!");
                 
+                // ✅ Teleport based on role from database
                 if (normalizedRole === 'ADMIN') navigate('/admin/dashboard');
                 else if (normalizedRole === 'VET') navigate('/vet/dashboard');
                 else navigate('/owner/dashboard');
@@ -186,24 +174,15 @@ const SignUp = () => {
 
           <div className="mb-8 pr-32">
             <h2 className="text-3xl font-extrabold text-slate-900 dark:text-white mb-2 tracking-tight">
-                {isAdminLogin ? 'Admin Portal' : (isLogin ? 'Welcome back' : 'Create account')}
+                {isLogin ? 'Welcome back' : 'Create account'}
             </h2>
             <p className="text-slate-500 dark:text-slate-400 text-sm">
-                {isAdminLogin ? 'Secure access for system administrators.' : (isLogin ? 'Enter your details to access your account.' : 'Join 10,000+ pet parents today.')}
+                {isLogin ? 'Enter your details to access your account.' : 'Join 10,000+ pet parents today.'}
             </p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-5">
-            {isLogin && (
-                <div className="grid grid-cols-2 gap-4 mb-2">
-                    <button type="button" onClick={() => setIsAdminLogin(false)} className={`flex items-center justify-center gap-2 p-3 rounded-xl border-2 transition-all duration-200 font-bold text-sm ${!isAdminLogin ? 'border-teal-500 bg-teal-50 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400' : 'border-slate-200 text-slate-500 hover:border-slate-300 dark:border-slate-700 dark:text-slate-400'}`}>
-                        <User className="w-4 h-4" /> User Login
-                    </button>
-                    <button type="button" onClick={() => setIsAdminLogin(true)} className={`flex items-center justify-center gap-2 p-3 rounded-xl border-2 transition-all duration-200 font-bold text-sm ${isAdminLogin ? 'border-slate-800 bg-slate-100 text-slate-800 dark:border-slate-500 dark:bg-slate-800 dark:text-white' : 'border-slate-200 text-slate-500 hover:border-slate-300 dark:border-slate-700 dark:text-slate-400'}`}>
-                        <ShieldCheck className="w-4 h-4" /> Admin Login
-                    </button>
-                </div>
-            )}
+            {/* ✅ REMOVED: Admin Login Toggle Button */}
 
             {!isLogin && (
               <div className="grid grid-cols-2 gap-4 mb-6">
@@ -220,33 +199,34 @@ const SignUp = () => {
 
             {isLogin ? (
               <>
-                <InputField label="Email Address" name="email" type="email" value={formData.email} onChange={handleChange} placeholder={isAdminLogin ? "Enter Admin Email " : "Enter your email"} error={errors.email} />
+                {/* ✅ REMOVED: Conditional "Admin Email" placeholder */}
+                <InputField label="Email Address" name="email" type="email" value={formData.email} onChange={handleChange} placeholder="Enter your email" error={errors.email} />
                 <InputField 
-  label="Password" 
-  name="password" 
-  type={showPassword ? "text" : "password"} 
-  value={formData.password} 
-  onChange={handleChange} 
-  placeholder="••••••••" 
-  error={errors.password} 
-  endAdornment={
-    <PasswordToggleBtn 
-      isVisible={showPassword} 
-      onToggle={() => setShowPassword(!showPassword)} 
-    />
-  } 
-/>
+                  label="Password" 
+                  name="password" 
+                  type={showPassword ? "text" : "password"} 
+                  value={formData.password} 
+                  onChange={handleChange} 
+                  placeholder="••••••••" 
+                  error={errors.password} 
+                  endAdornment={
+                    <PasswordToggleBtn 
+                      isVisible={showPassword} 
+                      onToggle={() => setShowPassword(!showPassword)} 
+                    />
+                  } 
+                />
 
-{/* 🔐 FORGOT PASSWORD LINK */}
-<div className="flex justify-end mt-1">
-  <button
-    type="button"
-    onClick={() => navigate('/forgot-password')}
-    className="text-xs font-semibold text-teal-500 hover:text-teal-600 hover:underline transition-colors"
-  >
-    Forgot Password?
-  </button>
-</div>
+                {/* 🔐 FORGOT PASSWORD LINK */}
+                <div className="flex justify-end mt-1">
+                  <button
+                    type="button"
+                    onClick={() => navigate('/forgot-password')}
+                    className="text-xs font-semibold text-teal-500 hover:text-teal-600 hover:underline transition-colors"
+                  >
+                    Forgot Password?
+                  </button>
+                </div>
               </>
             ) : (
               <>
@@ -275,7 +255,7 @@ const SignUp = () => {
                   <div className="pt-4 mt-2 border-t border-slate-100 dark:border-slate-700 animate-fadeIn">
                       <div className="space-y-4">
                         
-                        {/* --- NEW GRID FOR CLINIC & LOCATION --- */}
+                        {/* --- CLINIC & LOCATION --- */}
                         <div className="grid grid-cols-2 gap-4">
                             <InputField label="Clinic Name" name="clinicName" value={formData.clinicName} onChange={handleChange} placeholder="Happy Paws Clinic" error={errors.clinicName} />
                             <InputField label="City / Location" name="location" value={formData.location} onChange={handleChange} placeholder="e.g. Mumbai, India" error={errors.location} />
@@ -305,8 +285,8 @@ const SignUp = () => {
               </>
             )}
 
-            <button disabled={isLoading} type="submit" className={`w-full text-white font-bold py-3.5 rounded-xl shadow-lg transition-all mt-2 disabled:opacity-70 ${isAdminLogin ? 'bg-slate-800 hover:bg-slate-900 shadow-slate-500/30' : 'bg-teal-500 hover:bg-teal-600 shadow-teal-500/30'}`}>
-              {isLoading ? 'Processing...' : (isAdminLogin ? 'Access Admin Portal' : (isLogin ? 'Sign In' : 'Create Account'))}
+            <button disabled={isLoading} type="submit" className={`w-full text-white font-bold py-3.5 rounded-xl shadow-lg transition-all mt-2 disabled:opacity-70 bg-teal-500 hover:bg-teal-600 shadow-teal-500/30`}>
+              {isLoading ? 'Processing...' : (isLogin ? 'Sign In' : 'Create Account')}
             </button>
           </form>
 
