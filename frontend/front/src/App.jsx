@@ -56,26 +56,31 @@ import Orders from './pages/shared/Orders';
 import OrderDetails from './pages/shared/OrderDetails'; 
 import ContactSupport from './pages/shared/ContactSupport';
 
-// 🔒 ROLE GUARD
+// 🔒 THE IMPENETRABLE ROLE GUARD
 const RoleRoute = ({ children, allowedRoles }) => {
   const userString = localStorage.getItem('user');
-  const user = userString ? JSON.parse(userString) : null;
+  const token = localStorage.getItem('token'); // ✅ Added Token Check
 
-  if (!user) return <Navigate to="/login" replace />;
+  // 1. If they aren't logged in at all, kick them to the login page
+  if (!userString || !token) return <Navigate to="/login" replace />;
 
+  const user = JSON.parse(userString);
   const userRole = user.role ? user.role.toUpperCase() : 'USER';
 
+  // 2. If they are logged in, but trying to access the WRONG role's pages...
   if (!allowedRoles.includes(userRole)) {
+    // ...Teleport them to their correct dashboard!
     if (userRole === 'ADMIN') return <Navigate to="/admin/dashboard" replace />;
     if (userRole === 'VET') return <Navigate to="/vet/dashboard" replace />;
     return <Navigate to="/owner/dashboard" replace />;
   }
+  
+  // 3. If they pass the checks, let them in!
   return children;
 };
 
 function App() {
   return (
-    // ✅ WRAP THE ENTIRE APP IN CART PROVIDER
     <CartProvider>
       <Toaster position="top-center" reverseOrder={false} />
 
@@ -88,7 +93,8 @@ function App() {
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
 
-          {/* ================= ADMIN ROUTES ================= */}
+          {/* ================= 🔒 HIDDEN ADMIN ROUTES ================= */}
+          {/* Only users with the exact 'ADMIN' role from the database can pass this guard */}
           <Route path="/admin" element={
               <RoleRoute allowedRoles={['ADMIN']}>
                 <AdminLayout />
@@ -96,18 +102,15 @@ function App() {
           }>
             <Route index element={<Navigate to="dashboard" replace />} />
             <Route path="dashboard" element={<AdminDashboard />} />
-            
             <Route path="users" element={<Users />} />
             <Route path="doctors" element={<DoctorList />} />
             
-            {/* Admin Marketplace & Orders routes */}
             <Route path="marketplace" element={<Marketplace />} /> 
             <Route path="product/:id" element={<ProductDetails />} />
             <Route path="orders" element={<Orders />} /> 
             <Route path="orders/:id" element={<OrderDetails />} /> 
             
             <Route path="appointments" element={<AdminAppointments />} />
-
             <Route path="financials" element={<AdminFinancials />} />
             <Route path="analytics" element={<AdminAnalytics />} />
             <Route path="moderation" element={<AdminModeration />} />
@@ -117,7 +120,11 @@ function App() {
           </Route>
           
           {/* ================= VET ROUTES ================= */}
-          <Route path="/vet" element={<RoleRoute allowedRoles={['VET']}><VetLayout /></RoleRoute>}>
+          <Route path="/vet" element={
+              <RoleRoute allowedRoles={['VET']}>
+                <VetLayout />
+              </RoleRoute>
+          }>
             <Route index element={<Navigate to="dashboard" replace />} />
             <Route path="dashboard" element={<VetDashboard />} />
             <Route path="schedule" element={<VetSchedule />} />
@@ -126,19 +133,22 @@ function App() {
             <Route path="profile" element={<Profile />} />
             <Route path="settings" element={<VetSettings />} />
             
-            {/* SHARED E-COMMERCE FEATURES */}
+            {/* SHARED E-COMMERCE */}
             <Route path="marketplace" element={<Marketplace />} /> 
             <Route path="product/:id" element={<ProductDetails />} /> 
             <Route path="checkout" element={<Checkout />} /> 
             <Route path="order-confirmation" element={<OrderConfirmation />} /> 
             <Route path="orders" element={<Orders />} />
             <Route path="orders/:id" element={<OrderDetails />} />
-            
             <Route path="support" element={<ContactSupport />} />
           </Route>
 
           {/* ================= OWNER ROUTES ================= */}
-          <Route path="/owner" element={<RoleRoute allowedRoles={['USER']}><SaaSLayout /></RoleRoute>}>
+          <Route path="/owner" element={
+              <RoleRoute allowedRoles={['USER', 'OWNER']}>
+                <SaaSLayout />
+              </RoleRoute>
+          }>
             <Route index element={<Navigate to="dashboard" replace />} />
             <Route path="dashboard" element={<OwnerDashboard />} />
             <Route path="doctors" element={<FindVet />} /> 
@@ -146,29 +156,26 @@ function App() {
             <Route path="pets/add" element={<AddPet />} /> 
             <Route path="appointments" element={<Appointments />} />
             <Route path="appointments/book" element={<BookAppointment />} /> 
-
             <Route path="health" element={<HealthRecords />} />
             <Route path="payments" element={<Payments />} />
             <Route path="settings" element={<Settings />} />
             <Route path="profile" element={<Profile />} />
             
-            {/* SHARED E-COMMERCE FEATURES */}
+            {/* SHARED E-COMMERCE */}
             <Route path="marketplace" element={<Marketplace />} /> 
             <Route path="product/:id" element={<ProductDetails />} /> 
             <Route path="checkout" element={<Checkout />} /> 
             <Route path="order-confirmation" element={<OrderConfirmation />} /> 
             <Route path="orders" element={<Orders />} />
             <Route path="orders/:id" element={<OrderDetails />} />
-            
             <Route path="support" element={<ContactSupport />} />
           </Route>
 
-          {/* ================= DEBUGGING 404 CATCH ALL ================= */}
+          {/* ================= CATCH ALL 404 ================= */}
           <Route path="*" element={
             <div className="flex flex-col items-center justify-center h-screen bg-slate-50 dark:bg-slate-900 text-center p-6">
               <h1 className="text-4xl font-bold text-red-500 mb-4">404 Route Error</h1>
               <p className="text-slate-700 dark:text-slate-300 text-lg">React Router could not find this URL.</p>
-              <p className="text-slate-500 mt-2 font-mono">Check your browser URL bar. Is it spelled exactly right?</p>
               <button 
                 onClick={() => window.location.href = '/'} 
                 className="mt-6 px-6 py-3 bg-indigo-600 text-white font-bold rounded-xl shadow-lg hover:bg-indigo-700 transition-colors"
