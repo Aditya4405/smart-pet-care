@@ -69,12 +69,16 @@ const PublicNavbar = () => {
       <div className="max-w-7xl mx-auto px-6 lg:px-8 flex items-center justify-between">
         
         {/* LOGO */}
-        <div onClick={() => navigate('/')} className="cursor-pointer flex items-center gap-2">
-           <div className="w-8 h-8 rounded-lg bg-cyan-500 flex items-center justify-center text-white font-bold text-lg shadow-md">S</div>
-           <h1 className="text-2xl font-extrabold text-gray-900 dark:text-white tracking-tight">
-            SmartPetCare
-          </h1>
-        </div>
+<div onClick={() => navigate('/')} className="cursor-pointer flex items-center gap-3">
+  <img
+    src="/favicon.png"
+    alt="SmartPetCare Logo"
+    className="w-10 h-10 object-contain"
+  />
+  <h1 className="text-2xl font-extrabold text-gray-900 dark:text-white tracking-tight">
+    SmartPetCare
+  </h1>
+</div>
 
         {/* MIDDLE LINKS (Home, About, Contact) */}
         <nav className="hidden md:flex items-center gap-8">
