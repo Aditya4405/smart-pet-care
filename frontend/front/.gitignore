@@ -34,7 +34,3 @@ dist-ssr
 *.sln
 *.sw?
 
-src/pages/admin/
-src/components/admin/
-src/layouts/AdminLayout.jsx
-src/components/auth/AdminGuard.jsx
