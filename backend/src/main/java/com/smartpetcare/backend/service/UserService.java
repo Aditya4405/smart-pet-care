@@ -3,9 +3,19 @@ package com.smartpetcare.backend.service;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import java.util.Optional;
+import java.util.UUID;
+import java.util.Collections;
+
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+
+import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
+import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
+import com.google.api.client.http.javanet.NetHttpTransport;
+import com.google.api.client.json.gson.GsonFactory;
 
 import com.smartpetcare.backend.entity.User;
 import com.smartpetcare.backend.dto.LoginResponseDTO;
@@ -23,6 +33,9 @@ public class UserService {
 
     @Autowired
     private JwtUtil jwtUtil;
+
+    @Value("${GOOGLE_CLIENT_ID}")
+    private String googleClientId;
 
     // ==============================
     // 🔹 REGISTER USER
@@ -42,6 +55,12 @@ public class UserService {
         // 1. Check if email exists
         if (userRepository.existsByEmail(user.getEmail())) {
             throw new RuntimeException("Email is already in use!");
+        }
+
+        if ("VET".equalsIgnoreCase(user.getRole()) && user.getLicenseNumber() != null && !user.getLicenseNumber().trim().isEmpty()) {
+            if (userRepository.existsByLicenseNumber(user.getLicenseNumber())) {
+                throw new RuntimeException("License number is already registered!");
+            }
         }
 
         // 2. Set Status
@@ -93,9 +112,7 @@ public class UserService {
         // ==============================
         // 🔹 STATUS CHECKS
         // ==============================
-        if ("PENDING".equalsIgnoreCase(user.getStatus())) {
-            throw new RuntimeException("Account is pending Admin Approval. Please wait.");
-        }
+        // Pending check removed so vets can log in to view status
 
         if ("REJECTED".equalsIgnoreCase(user.getStatus())) {
             throw new RuntimeException("Your account was rejected by Admin.");
@@ -115,6 +132,59 @@ public class UserService {
         response.setToken(token);
 
         return response;
+    }
+
+    // ==============================
+    // 🔹 GOOGLE LOGIN
+    // ==============================
+    public LoginResponseDTO googleLogin(String idTokenString, String requestedRole) throws Exception {
+        GoogleIdTokenVerifier verifier = new GoogleIdTokenVerifier.Builder(new NetHttpTransport(), new GsonFactory())
+            .setAudience(Collections.singletonList(googleClientId))
+            .build();
+
+        GoogleIdToken idToken = verifier.verify(idTokenString);
+        if (idToken != null) {
+            GoogleIdToken.Payload payload = idToken.getPayload();
+            String email = payload.getEmail();
+            String firstName = (String) payload.get("given_name");
+            String lastName = (String) payload.get("family_name");
+            
+            // Check if user exists
+            Optional<User> userOpt = userRepository.findByEmail(email);
+            User user;
+            if (userOpt.isPresent()) {
+                user = userOpt.get();
+                // Check status
+                if ("BANNED".equalsIgnoreCase(user.getStatus()) || "SUSPENDED".equalsIgnoreCase(user.getStatus())) {
+                    throw new RuntimeException("Account is restricted.");
+                }
+            } else {
+                // Register new user
+                user = new User();
+                user.setEmail(email);
+                user.setFirstName(firstName != null ? firstName : "User");
+                user.setLastName(lastName != null ? lastName : "");
+                user.setPassword(passwordEncoder.encode(UUID.randomUUID().toString())); // Random password
+                user.setRole(requestedRole != null ? requestedRole.toUpperCase() : "USER");
+                
+                if ("VET".equalsIgnoreCase(user.getRole())) {
+                    user.setStatus("PENDING");
+                    user = userRepository.save(user);
+                } else {
+                    user.setStatus("APPROVED");
+                    user = userRepository.save(user);
+                }
+            }
+            // Pending check removed so vets can log in to view status
+
+            String token = jwtUtil.generateToken(user.getEmail(), user.getRole());
+            LoginResponseDTO response = new LoginResponseDTO(user);
+            response.setToken(token);
+            return response;
+
+        } else {
+            throw new RuntimeException("Invalid Google ID token.");
+        }
     }
 
     // ==============================
