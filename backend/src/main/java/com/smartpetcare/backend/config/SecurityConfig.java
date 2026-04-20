@@ -39,7 +39,7 @@ public class SecurityConfig {
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                .requestMatchers("/api/auth/**","/api/users/register", "/api/users/login", "/uploads/**", "/error").permitAll()
+                .requestMatchers("/api/auth/**","/api/users/register", "/api/users/login", "/api/users/google-auth", "/uploads/**", "/error").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/products/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/reviews/product/**").permitAll()
                 .requestMatchers("/api/products/**").hasAnyAuthority("ADMIN","ROLE_ADMIN")
