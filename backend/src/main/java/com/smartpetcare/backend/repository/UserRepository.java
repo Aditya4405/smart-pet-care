@@ -12,6 +12,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
     
     // --- Added for DataSeeder & Security Auth ---
     boolean existsByEmail(String email);
+    boolean existsByLicenseNumber(String licenseNumber);
     
     Optional<User> findByEmail(String email); 
 
