@@ -4,6 +4,8 @@ import PublicNavbar from '../components/PublicNavbar';
 import { ShieldCheck, Users, Eye, EyeOff } from 'lucide-react';
 import { API } from "../config/api";
 import toast from 'react-hot-toast';
+import { GoogleLogin } from '@react-oauth/google';
+import { jwtDecode } from "jwt-decode";
 
 const SignUp = () => {
   const navigate = useNavigate();
@@ -177,6 +179,57 @@ const SignUp = () => {
     }
   };
 
+  const handleGoogleSuccess = async (credentialResponse) => {
+    if (!isLogin && userType === 'vet') {
+        try {
+            const decoded = jwtDecode(credentialResponse.credential);
+            setFormData(prev => ({
+                ...prev,
+                firstName: decoded.given_name || prev.firstName,
+                lastName: decoded.family_name || prev.lastName,
+                email: decoded.email || prev.email,
+            }));
+            toast.success("Google info fetched! Please complete the remaining veterinary details below and click Create Account.");
+        } catch (error) {
+            console.error("JWT Decode Error:", error);
+            toast.error("Failed to read Google data.");
+        }
+        return;
+    }
+
+    setIsLoading(true);
+    try {
+        const response = await fetch(`${API.BASE_API}/users/google-auth`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ token: credentialResponse.credential, role: userType === 'vet' ? 'VET' : 'USER' })
+        });
+        
+        if (response.ok) {
+            const userData = await response.json();
+            const normalizedRole = userData.role ? userData.role.toUpperCase() : 'USER';
+            
+            const finalUser = { ...userData, role: normalizedRole };
+            localStorage.setItem('user', JSON.stringify(finalUser));
+            localStorage.setItem('token', userData.token); 
+            
+            toast.success("Authentication Successful!");
+            
+            if (normalizedRole === 'ADMIN') navigate('/admin/dashboard');
+            else if (normalizedRole === 'VET') navigate('/vet/dashboard');
+            else navigate('/owner/dashboard');
+        } else {
+            const errorMsg = await response.text();
+            toast.error("Google Auth Error: " + errorMsg);
+        }
+    } catch (error) {
+        console.error("Google Auth Error:", error);
+        toast.error("Google authentication failed.");
+    } finally {
+        setIsLoading(false);
+    }
+  };
+
   const PasswordToggleBtn = ({ isVisible, onToggle }) => (
     <button type="button" onClick={onToggle} className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 focus:outline-none" tabIndex="-1">
       {isVisible ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
@@ -310,6 +363,24 @@ const SignUp = () => {
             <button disabled={isLoading} type="submit" className={`w-full text-white font-bold py-3.5 rounded-xl shadow-lg transition-all mt-2 disabled:opacity-70 bg-teal-500 hover:bg-teal-600 shadow-teal-500/30`}>
               {isLoading ? 'Processing...' : (isLogin ? 'Sign In' : 'Create Account')}
             </button>
+
+            <div className="relative flex items-center py-2">
+                <div className="flex-grow border-t border-slate-200 dark:border-slate-700"></div>
+                <span className="flex-shrink-0 mx-4 text-slate-400 text-sm">Or continue with</span>
+                <div className="flex-grow border-t border-slate-200 dark:border-slate-700"></div>
+            </div>
+            
+            <div className="flex justify-center w-full">
+                <GoogleLogin
+                    onSuccess={handleGoogleSuccess}
+                    onError={() => {
+                        toast.error('Google Login Failed');
+                    }}
+                    useOneTap
+                    shape="pill"
+                    theme="outline"
+                />
+            </div>
           </form>
 
           <div className="mt-8 text-center">
