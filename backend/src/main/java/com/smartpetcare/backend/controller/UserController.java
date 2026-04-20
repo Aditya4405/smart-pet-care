@@ -13,6 +13,7 @@ import org.springframework.web.multipart.MultipartFile;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.smartpetcare.backend.entity.User;
 import com.smartpetcare.backend.dto.LoginResponseDTO;
+import com.smartpetcare.backend.dto.GoogleAuthRequest;
 import com.smartpetcare.backend.service.FileService;
 import com.smartpetcare.backend.service.UserService;
 import com.smartpetcare.backend.repository.UserRepository;
@@ -42,6 +43,14 @@ public class UserController {
             User user = mapper.readValue(userString, User.class);
             
             if (certificate != null && !certificate.isEmpty()) {
+                String contentType = certificate.getContentType();
+                if (contentType == null || (!contentType.equals("application/pdf") && !contentType.equals("image/jpeg") && !contentType.equals("image/png"))) {
+                    return ResponseEntity.badRequest().body("Invalid certificate format. Only PDF, JPG, and PNG are allowed.");
+                }
+                if (certificate.getSize() > 5 * 1024 * 1024) { // 5MB limit
+                    return ResponseEntity.badRequest().body("Certificate size exceeds 5MB limit.");
+                }
+
                 String fileName = fileService.saveFile(certificate);
                 user.setCertificateUrl(fileName);
             }
@@ -70,6 +79,17 @@ public class UserController {
             LoginResponseDTO response = userService.loginUser(loginRequest.getEmail(), loginRequest.getPassword());
             return ResponseEntity.ok(response);
         } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    // --- GOOGLE AUTH ENDPOINT ---
+    @PostMapping("/google-auth")
+    public ResponseEntity<?> googleAuth(@RequestBody GoogleAuthRequest request) {
+        try {
+            LoginResponseDTO response = userService.googleLogin(request.getToken(), request.getRole());
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
