@@ -29,6 +29,16 @@ public class UserService {
     // ==============================
     public User registerUser(User user) {
 
+        // Validate Email
+        if (user.getEmail() == null || !user.getEmail().matches("^[\\w-\\.]+@([\\w-]+\\.)+[\\w-]{2,4}$")) {
+            throw new RuntimeException("Invalid email format!");
+        }
+
+        // Validate Phone
+        if (user.getPhone() == null || !user.getPhone().matches("^\\d{10}$")) {
+            throw new RuntimeException("Phone number must be exactly 10 digits!");
+        }
+
         // 1. Check if email exists
         if (userRepository.existsByEmail(user.getEmail())) {
             throw new RuntimeException("Email is already in use!");
