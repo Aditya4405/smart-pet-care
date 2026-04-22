@@ -34,7 +34,7 @@ public class UserService {
     @Autowired
     private JwtUtil jwtUtil;
 
-    @Value("${GOOGLE_CLIENT_ID}")
+    @Value("${GOOGLE_CLIENT_ID:}")
     private String googleClientId;
 
     // ==============================
